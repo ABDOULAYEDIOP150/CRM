@@ -1,0 +1,6 @@
+streamlit
+pandas
+plotly
+fpdf
+sqlalchemy
+datetime

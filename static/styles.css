@@ -1,0 +1,285 @@
+/* ========================================
+   CRM PRO - DESIGN PREMIUM
+   ======================================== */
+
+:root {
+    --primary-dark: #0a2472;
+    --primary: #0e3b8c;
+    --primary-light: #1e4f9e;
+    --accent: #ff6b35;
+    --surface-dark: #ffffff;
+    --surface-light: #f5f7fc;
+    --text-primary: #1e293b;
+    --text-secondary: #475569;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --shadow-sm: 0 2px 4px rgba(0,0,0,0.02);
+    --shadow-md: 0 4px 6px -1px rgba(0,0,0,0.05);
+}
+
+/* ========== LAYOUT GLOBAL ========== */
+.stApp {
+    background: linear-gradient(135deg, #f8fafc 0%, #f1f5f9 100%);
+}
+
+/* ========== STRUCTURE PRINCIPALE ========== */
+.main-container {
+    display: flex;
+    min-height: 100vh;
+}
+
+/* ========== MENU LATÉRAL (1/4) ========== */
+.side-menu {
+    width: 25%;
+    background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
+    border-right: 1px solid rgba(226, 232, 240, 0.6);
+    padding: 2rem 1rem;
+    min-height: 100vh;
+    box-shadow: 4px 0 10px -8px rgba(0,0,0,0.05);
+}
+
+.menu-header {
+    padding: 0 0.5rem 2rem 0.5rem;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 2rem;
+}
+
+.menu-header h2 {
+    font-size: 1.8rem;
+    font-weight: 700;
+    margin: 0;
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary-light) 100%);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: -0.5px;
+}
+
+.menu-header small {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+    display: block;
+    margin-top: 0.5rem;
+}
+
+.menu-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 14px 16px;
+    margin: 4px 0;
+    border-radius: 12px;
+    font-weight: 500;
+    color: var(--text-secondary);
+    transition: all 0.2s ease;
+    cursor: pointer;
+    border: none;
+    background: transparent;
+    width: 100%;
+    text-align: left;
+    font-size: 1rem;
+}
+
+.menu-item:hover {
+    background: linear-gradient(135deg, rgba(14, 59, 140, 0.05) 0%, rgba(30, 79, 158, 0.08) 100%);
+    color: var(--primary);
+    transform: translateX(5px);
+}
+
+.menu-item.active {
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%);
+    color: white;
+    box-shadow: 0 4px 12px rgba(14, 59, 140, 0.25);
+}
+
+.menu-icon {
+    font-size: 1.3rem;
+    min-width: 28px;
+}
+
+/* ========== CONTENU PRINCIPAL (3/4) ========== */
+.main-content {
+    width: 75%;
+    padding: 2rem 2.5rem;
+    background: var(--surface-light);
+}
+
+/* ========== HEADER ULTRA MINIMAL ========== */
+.page-header {
+    margin-bottom: 2rem;
+    padding-bottom: 1rem;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.page-header h1 {
+    font-size: 1.3rem !important;
+    font-weight: 500 !important;
+    color: var(--text-primary) !important;
+    margin: 0 !important;
+}
+
+.page-header h1 span {
+    font-size: 1rem;
+    color: var(--text-muted);
+    margin-left: 8px;
+}
+
+.page-date {
+    font-size: 0.8rem !important;
+    color: var(--text-muted) !important;
+    background: white;
+    padding: 4px 12px;
+    border-radius: 20px;
+    border: 1px solid var(--border);
+}
+
+/* ========== TITRES DE SECTION ========== */
+.section-title {
+    font-size: 1rem !important;
+    font-weight: 600 !important;
+    color: var(--text-secondary) !important;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 1rem !important;
+}
+
+/* ========== CARTES STATISTIQUES ========== */
+.stats-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: white;
+    padding: 1.2rem;
+    border-radius: 16px;
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border);
+    transition: transform 0.2s;
+}
+
+.stat-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.stat-title {
+    color: var(--text-muted);
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-bottom: 0.5rem;
+}
+
+.stat-value {
+    color: var(--primary-dark);
+    font-size: 1.6rem;
+    font-weight: 700;
+    line-height: 1.2;
+}
+
+/* ========== FORMULAIRES ========== */
+.form-container {
+    background: white;
+    padding: 1.5rem;
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    margin-bottom: 1.5rem;
+}
+
+.form-label {
+    font-size: 0.8rem;
+    font-weight: 600;
+    color: var(--text-secondary);
+    margin-bottom: 0.3rem;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+/* ========== TABLEAUX ========== */
+.dataframe {
+    width: 100%;
+    border-collapse: collapse;
+    background: white;
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    font-size: 0.9rem;
+}
+
+.dataframe th {
+    background: linear-gradient(135deg, var(--primary-dark) 0%, var(--primary) 100%) !important;
+    color: white !important;
+    font-weight: 500 !important;
+    padding: 10px 16px !important;
+    font-size: 0.8rem !important;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.dataframe td {
+    padding: 8px 16px !important;
+    border-bottom: 1px solid var(--border) !important;
+    color: var(--text-secondary) !important;
+}
+
+/* ========== BOUTONS ========== */
+.stButton > button {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-light) 100%) !important;
+    color: white !important;
+    border: none !important;
+    padding: 0.5rem 1.2rem !important;
+    border-radius: 10px !important;
+    font-weight: 500 !important;
+    font-size: 0.9rem !important;
+    transition: all 0.2s !important;
+    border: 1px solid transparent !important;
+}
+
+.stButton > button:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 4px 12px rgba(14, 59, 140, 0.25) !important;
+}
+
+/* ========== INPUTS ========== */
+.stTextInput > div > div > input,
+.stSelectbox > div > div > select {
+    border-radius: 10px !important;
+    border: 1px solid var(--border) !important;
+    padding: 0.5rem !important;
+    font-size: 0.9rem !important;
+}
+
+.stTextInput > div > div > input:focus {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px rgba(14, 59, 140, 0.1) !important;
+}
+
+/* ========== HEADER AMÉLIORÉ ========== */
+div[data-testid="column"]:nth-of-type(2) {
+    position: relative;
+}
+
+/* Pour que le header reste bien aligné */
+.element-container:first-child {
+    margin-top: 0 !important;
+}
+
+/* Ajustement des marges des graphiques */
+.js-plotly-plot {
+    margin-top: 0 !important;
+}
+
+/* Style pour la date */
+.date-badge {
+    background: #f1f5f9;
+    padding: 4px 12px;
+    border-radius: 20px;
+    font-size: 0.8rem;
+    color: #475569;
+    display: inline-block;
+}
