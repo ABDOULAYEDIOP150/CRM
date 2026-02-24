@@ -33,7 +33,7 @@
 
 ## 📸 Capture d'écran
 
-![Dashboard CRM Pro](screenshot.png)
+![Dashboard CRM Pro](logo.png)
 *Interface principale du tableau de bord*
 
 ## 🚀 Installation
@@ -63,3 +63,4 @@ pip install -r requirements.txt
 
 # 5. Lancez l'application
 streamlit run app_crm.py
+
