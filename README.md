@@ -21,6 +21,22 @@ L’objectif est de centraliser, structurer et exploiter les données clients af
 
 ---
 
+## 📸 Capture d’écran
+
+![Interface CRM Pro](logo.png)
+
+*Exemple : tableau de bord et interface de gestion (clients, produits, ventes)*
+
+👉 L’application comporte plusieurs modules :
+
+* Dashboard (indicateurs clés)
+* Gestion des clients
+* Gestion des produits
+* Gestion des ventes
+* Facturation
+
+---
+
 ## 💡 Problématique métier
 
 Dans de nombreuses organisations, les données clients sont :
@@ -163,7 +179,7 @@ streamlit run app_crm.py
 1. Accéder au tableau de bord
 2. Ajouter des clients / produits
 3. Enregistrer des ventes
-4. Géner des factures
+4. Générer des factures
 5. Analyser les performances
 
 ---
