@@ -1,8 +1,33 @@
 """CRM Pro — point d'entrée Streamlit : démarrage, connexion, menu latéral et routage des pages."""
 
+import hashlib
+import sys
 from pathlib import Path
 
 import streamlit as st
+
+# --- Mise à jour du code sans redémarrage (Streamlit Cloud) ------------------------------------------
+# Quand GitHub pousse une nouvelle version, le serveur relance ce script mais garde en mémoire les
+# anciens modules (db.*, modules.*, config). Si la version a changé, on les oublie pour charger les
+# nouveaux, et on vide le cache (connexion à la base, migration).
+_RACINE = Path(__file__).parent
+_PROJET = {"config", "db", "modules", "demo_data"}
+_fichiers = [
+    *sorted(_RACINE.glob("*.py")),
+    *sorted((_RACINE / "db").glob("*.py")),
+    *sorted((_RACINE / "modules").glob("*.py")),
+]
+_version = hashlib.md5(
+    "|".join(f"{p.name}:{p.stat().st_mtime_ns}:{p.stat().st_size}" for p in _fichiers).encode()
+).hexdigest()
+_precedente = getattr(sys, "_crm_version", None)
+_perimes = _precedente != _version if _precedente else any(n in sys.modules for n in _PROJET)
+if _perimes:
+    for _nom in [n for n in sys.modules if n.split(".")[0] in _PROJET]:
+        del sys.modules[_nom]
+    st.cache_resource.clear()
+    st.cache_data.clear()
+sys._crm_version = _version
 
 import config
 from db import alertes as A

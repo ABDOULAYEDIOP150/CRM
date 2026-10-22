@@ -12,6 +12,9 @@ target-version = "py310"
 select = ["E", "F", "W", "I", "B", "UP"]
 ignore = ["E741", "E501"]  # « l » utilisé volontairement ; longueur gérée par ruff format (sauf textes)
 
+[tool.ruff.lint.per-file-ignores]
+"app_crm.py" = ["E402"]  # imports après le rechargement des modules
+
 [tool.ruff.lint.isort]
 known-first-party = ["config", "db", "modules", "demo_data"]
 
