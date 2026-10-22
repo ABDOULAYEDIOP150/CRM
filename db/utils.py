@@ -1,66 +1,96 @@
 from datetime import datetime, timedelta
-from sqlalchemy import func
-from .models import get_session, Vente, Produit, VenteProduit, Client
-import pandas as pd
 
-session = get_session()
+import pandas as pd
+from sqlalchemy import func
+
+import config
+from .models import get_session, Vente, Produit, VenteProduit, Paiement, Parametre
+
+
+# ---------- Paramètres boutique ----------
+
+def get_params():
+    with get_session() as s:
+        stockes = {p.cle: p.valeur for p in s.query(Parametre).all()}
+    return {**config.PARAMETRES_DEFAUT, **stockes}
+
+
+def get_param(cle):
+    return get_params().get(cle)
+
+
+def set_params(valeurs: dict):
+    with get_session() as s:
+        for cle, val in valeurs.items():
+            s.merge(Parametre(cle=cle, valeur=str(val)))
+        s.commit()
+
+
+# ---------- Statistiques ----------
 
 def get_stats_periode(debut, fin):
-    """Récupère les statistiques pour une période donnée"""
-    ventes_periode = session.query(Vente).filter(Vente.date.between(debut, fin)).all()
-    
-    nb_ventes = len(ventes_periode)
-    ca_total = sum([sum([vp.quantite * vp.prix_unit for vp in v.produits]) for v in ventes_periode])
-    nb_produits_vendus = sum([sum([vp.quantite for vp in v.produits]) for v in ventes_periode])
-    nb_clients_unis = len(set([v.client_id for v in ventes_periode]))
-    
-    return {
-        "nb_ventes": nb_ventes,
-        "ca_total": ca_total,
-        "nb_produits": nb_produits_vendus,
-        "nb_clients": nb_clients_unis
-    }
+    with get_session() as s:
+        ventes = s.query(Vente).filter(Vente.date.between(debut, fin)).all()
+        encaisse = s.query(func.coalesce(func.sum(Paiement.montant), 0)).filter(
+            Paiement.date.between(debut, fin)).scalar()
+        marge = 0
+        for v in ventes:
+            for vp in v.produits:
+                pa = (vp.produit.prix_achat or 0) if vp.produit else 0
+                if pa:
+                    marge += (vp.prix_unit - pa) * vp.quantite
+        return {
+            "nb_ventes": len(ventes),
+            "ca_total": sum(v.total for v in ventes),
+            "nb_produits": sum(vp.quantite for v in ventes for vp in v.produits),
+            "nb_clients": len({v.client_id for v in ventes}),
+            "encaisse": encaisse or 0,
+            "marge": marge,
+        }
+
 
 def get_top_produits(limite=10, debut=None, fin=None):
-    """Récupère le top N des produits les plus vendus"""
-    query = session.query(
-        Produit.nom,
-        func.sum(VenteProduit.quantite).label('total_quantite'),
-        func.sum(VenteProduit.quantite * VenteProduit.prix_unit).label('ca_total')
-    ).join(VenteProduit).join(Vente)
-    
-    if debut and fin:
-        query = query.filter(Vente.date.between(debut, fin))
-    
-    result = query.group_by(Produit.nom).order_by(func.sum(VenteProduit.quantite).desc()).limit(limite).all()
-    
-    return pd.DataFrame(result, columns=['Produit', 'Quantite_vendue', 'CA_total'])
+    with get_session() as s:
+        q = s.query(
+            Produit.nom,
+            func.sum(VenteProduit.quantite).label("total_quantite"),
+            func.sum(VenteProduit.quantite * VenteProduit.prix_unit).label("ca_total"),
+        ).join(VenteProduit).join(Vente)
+        if debut and fin:
+            q = q.filter(Vente.date.between(debut, fin))
+        res = q.group_by(Produit.nom).order_by(func.sum(VenteProduit.quantite).desc()).limit(limite).all()
+    return pd.DataFrame(res, columns=["Produit", "Quantite_vendue", "CA_total"])
+
 
 def get_evolution_ca(jours=30):
-    """Récupère l'évolution du CA sur les X derniers jours"""
+    """CA (ventes) et encaissements (argent réellement reçu) par jour."""
     fin = datetime.now()
-    debut = fin - timedelta(days=jours)
-    
-    ventes = session.query(Vente).filter(Vente.date.between(debut, fin)).all()
-    
-    ca_par_jour = {}
-    for i in range(jours):
-        date_jour = (debut + timedelta(days=i)).date()
-        ca_par_jour[date_jour] = 0
-    
-    for vente in ventes:
-        date_vente = vente.date.date()
-        ca = sum([vp.quantite * vp.prix_unit for vp in vente.produits])
-        ca_par_jour[date_vente] = ca_par_jour.get(date_vente, 0) + ca
-    
-    df = pd.DataFrame(list(ca_par_jour.items()), columns=['Date', 'CA'])
-    return df
+    debut = (fin - timedelta(days=jours - 1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    jours_liste = [(debut + timedelta(days=i)).date() for i in range(jours)]
+    ca = dict.fromkeys(jours_liste, 0)
+    enc = dict.fromkeys(jours_liste, 0)
+    with get_session() as s:
+        for v in s.query(Vente).filter(Vente.date.between(debut, fin)):
+            ca[v.date.date()] = ca.get(v.date.date(), 0) + v.total
+        for p in s.query(Paiement).filter(Paiement.date.between(debut, fin)):
+            enc[p.date.date()] = enc.get(p.date.date(), 0) + p.montant
+    return pd.DataFrame({"Date": jours_liste, "CA": [ca[d] for d in jours_liste],
+                         "Encaissé": [enc[d] for d in jours_liste]})
+
 
 def get_repartition_modes_livraison(debut=None, fin=None):
-    """Récupère la répartition des modes de livraison"""
-    query = session.query(Vente.mode_livraison, func.count(Vente.id))
-    if debut and fin:
-        query = query.filter(Vente.date.between(debut, fin))
-    result = query.group_by(Vente.mode_livraison).all()
-    
-    return pd.DataFrame(result, columns=['Mode', 'Nombre'])
+    with get_session() as s:
+        q = s.query(Vente.mode_livraison, func.count(Vente.id))
+        if debut and fin:
+            q = q.filter(Vente.date.between(debut, fin))
+        res = q.group_by(Vente.mode_livraison).all()
+    return pd.DataFrame(res, columns=["Mode", "Nombre"])
+
+
+def get_repartition_paiements(debut=None, fin=None):
+    with get_session() as s:
+        q = s.query(Paiement.mode, func.sum(Paiement.montant))
+        if debut and fin:
+            q = q.filter(Paiement.date.between(debut, fin))
+        res = q.group_by(Paiement.mode).all()
+    return pd.DataFrame(res, columns=["Mode", "Montant"])

@@ -1,52 +1,60 @@
-import streamlit as st
-import pandas as pd
-from db.models import get_session, Produit
 import config
+import pandas as pd
+import streamlit as st
 
-session = get_session()
+from config import fmt_money
+from db.models import get_session, Produit
+from db.utils import get_param
+
 
 def show_produits():
     st.markdown("<h2 style='color: #1e3a8a;'>📦 Gestion des produits</h2>", unsafe_allow_html=True)
-    
-    col1, col2 = st.columns([1, 1])
-    
-    with col1:
-        with st.container():
-            st.markdown("### ➕ Nouveau produit")
-            with st.form("form_produit"):
-                nom = st.text_input("Nom du produit")
-                prix = st.number_input("Prix (EUR)", min_value=0.0, step=0.5)
-                stock = st.number_input("Stock initial", min_value=0, step=1)
-                submitted = st.form_submit_button("Ajouter le produit")
-                if submitted and nom:
-                    if session.query(Produit).filter_by(nom=nom).first():
-                        st.error("❌ Ce produit existe déjà")
+    seuil = int(get_param("seuil_stock"))
+    with get_session() as session:
+        col1, col2 = st.columns([2, 3])
+        with col1:
+            produits = session.query(Produit).order_by(Produit.nom).all()
+            p = config.choisir("Produit", produits, lambda x: f"✏️ {x.nom}", nouveau="➕ Nouveau produit")
+            with st.form("form_produit", clear_on_submit=p is None):
+                nom = st.text_input("Nom du produit *", value=p.nom if p else "")
+                prix = st.number_input("Prix de vente (FCFA)", min_value=0, step=100, value=int(p.prix or 0) if p else 0)
+                prix_achat = st.number_input("Prix d'achat (FCFA, pour la marge)", min_value=0, step=100,
+                                             value=int(p.prix_achat or 0) if p else 0)
+                if p:
+                    ajout = st.number_input(f"Réapprovisionner (stock actuel : {p.stock})", min_value=0, step=1)
+                else:
+                    ajout = st.number_input("Stock initial", min_value=0, step=1)
+                if st.form_submit_button("Enregistrer", use_container_width=True):
+                    if not nom:
+                        st.error("Le nom est obligatoire.")
+                    elif session.query(Produit).filter(Produit.nom == nom, Produit.id != (p.id if p else -1)).first():
+                        st.error("❌ Un produit porte déjà ce nom")
                     else:
-                        session.add(Produit(nom=nom, prix=prix, stock=stock))
+                        if p is None:
+                            p = Produit(stock=0)
+                            session.add(p)
+                        p.nom, p.prix, p.prix_achat = nom, prix, prix_achat
+                        p.stock = (p.stock or 0) + ajout
                         session.commit()
-                        st.success("✅ Produit ajouté avec succès")
-    
-    with col2:
-        st.markdown("### 📋 Inventaire")
-        produits = session.query(Produit).all()
-        if produits:
+                        st.session_state["flash"] = f"✅ Produit {nom} enregistré."
+                        st.rerun()
+
+        with col2:
+            st.markdown("### 📋 Inventaire")
+            produits = session.query(Produit).order_by(Produit.nom).all()
+            if not produits:
+                st.info("Aucun produit")
+                return
             df = pd.DataFrame([{
-                "ID": p.id,
-                "Produit": p.nom,
-                "Prix": f"{p.prix:.2f} EUR",
-                "Stock": p.stock,
-                "Valeur": f"{p.prix * p.stock:.2f} EUR",
-                "Statut": "⚠️ Stock faible" if p.stock <= config.SEUIL_STOCK else "✅ OK"
-            } for p in produits])
-            st.dataframe(df, use_container_width=True)
-            
-            alertes = [p.nom for p in produits if p.stock <= config.SEUIL_STOCK]
+                "Produit": x.nom, "Prix": x.prix, "Prix d'achat": x.prix_achat or 0,
+                "Marge unit.": (x.prix - x.prix_achat) if x.prix_achat else None,
+                "Stock": x.stock, "Valeur stock": x.prix * x.stock,
+                "Statut": "⚠️ Stock faible" if x.stock <= seuil else "✅ OK",
+            } for x in produits])
+            st.dataframe(df, hide_index=True, use_container_width=True, column_config={
+                c: st.column_config.NumberColumn(format="%d") for c in
+                ["Prix", "Prix d'achat", "Marge unit.", "Valeur stock"]})
+            st.caption(f"Valeur totale du stock : {fmt_money(df['Valeur stock'].sum())}")
+            alertes = [x.nom for x in produits if x.stock <= seuil]
             if alertes:
-                st.markdown(f"""
-                    <div style='background-color: #fef9c3; padding: 1rem; border-radius: 8px; margin-top: 1rem;'>
-                        <p style='color: #854d0e; margin: 0;'><strong>⚠️ Alertes stock faible</strong></p>
-                        <p style='color: #854d0e; margin: 5px 0 0 0;'>{', '.join(alertes)}</p>
-                    </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.info("Aucun produit en stock")
+                st.warning("⚠️ Stock faible : " + ", ".join(alertes))

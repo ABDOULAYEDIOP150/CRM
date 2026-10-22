@@ -1,6 +1,6 @@
 # 🚀 CRM PRO - Application de Gestion Commerciale & Données Clients
 
-![Version](https://img.shields.io/badge/version-2.0.0-blue)
+![Version](https://img.shields.io/badge/version-3.0.0-blue)
 ![Python](https://img.shields.io/badge/python-3.8%2B-green)
 ![Streamlit](https://img.shields.io/badge/streamlit-1.28%2B-red)
 ![License](https://img.shields.io/badge/license-MIT-orange)
@@ -55,40 +55,36 @@ Dans de nombreuses organisations, les données clients sont :
 
 ## 🧠 Fonctionnalités principales
 
-### 📊 Pilotage & Reporting
+### 💳 Gestion des dettes (nouveau en v3)
 
-* Tableau de bord interactif (CA, ventes, clients actifs)
-* Suivi des performances commerciales
-* Indicateurs clés pour aide à la décision
+Pensé pour les boutiques au Sénégal, où la vente « à crédit » est courante :
 
-### 👥 Gestion des données clients
+* **Vente à crédit** directement depuis la caisse, avec **acompte** versé le jour même
+* **Échéancier** : nombre de versements + fréquence (hebdomadaire, toutes les 2 semaines, mensuelle)
+* **Remboursements partiels** (Espèces, Wave, Orange Money, Free Money…) avec **reçu PDF**
+* Statut automatique de chaque dette : 🟢 À jour · 🔴 En retard (avec nombre de jours) · ✅ Soldée
+* **Rééchelonnement** quand un client demande plus de temps, annulation en cas d'erreur
+* **Plafond de crédit** par client + alerte si le client a déjà une dette en retard
+* **Dettes manuelles** pour reprendre les anciennes dettes du cahier ou un prêt d'argent
+* **Relance en un clic** par WhatsApp ou SMS avec un message pré-rempli (modifiable)
 
-* Création, modification et consultation des clients
-* Structuration des données clients (contacts, historique)
-* Vision globale du portefeuille client
+### 📊 Tableau de bord & alertes
 
-### 📦 Gestion des produits
+* KPI par période : CA, **encaissé**, marge estimée, **dettes à recevoir**, **montant en retard**
+* 🔔 Alertes : dettes en retard, échéances dans les X prochains jours, stock faible
+* Graphiques : ventes vs encaissements, top débiteurs, top produits, moyens de paiement
 
-* Catalogue produits
-* Suivi des stocks
-* Alertes automatiques en cas de seuil critique
+### 👥 Clients · 📦 Produits · 🛒 Ventes · 📄 Factures
 
-### 🛒 Gestion des ventes
+* Création **et modification** des clients (adresse, plafond, notes) et des produits (prix d'achat, réapprovisionnement)
+* Panier modifiable, **remise**, vérification du stock au moment de valider
+* Factures PDF avec situation de paiement (payé / reste à payer / échéancier)
+* Historique filtrable par période, exports CSV
+* ⚙️ Paramètres de la boutique (nom, téléphone, NINEA, RCCM…) repris sur les factures et reçus
+* Montants en **FCFA**
 
-* Enregistrement des ventes
-* Gestion de panier dynamique
-* Historique complet des transactions
-
-### 📄 Facturation
-
-* Génération automatique de factures PDF
-* Archivage des transactions
-
-### 🔄 Logique CRM
-
-* Suivi des interactions commerciales
-* Historisation des actions
-* Base exploitable pour marketing ou analyse
+![Tableau de bord](docs/dashboard.png)
+![Dettes](docs/dettes.png)
 
 ---
 
@@ -96,11 +92,17 @@ Dans de nombreuses organisations, les données clients sont :
 
 ```bash
 CRM/
-│── app_crm.py              # Application principale Streamlit
-│── requirements.txt        # Dépendances
-│── data/                   # Données (clients, ventes, produits)
-│── modules/                # Logique métier (gestion CRM)
-│── assets/                 # Images / UI
+│── app_crm.py              # Application Streamlit (menu + routage)
+│── config.py               # Paramètres, couleurs, formatage FCFA
+│── demo_data.py            # Données de démonstration
+│── db/
+│   ├── models.py           # Modèles SQLAlchemy + migration automatique de l'ancienne base
+│   ├── dettes.py           # Logique métier des dettes (échéancier, retards, relances)
+│   └── utils.py            # Statistiques et paramètres
+│── modules/                # Pages : dashboard, clients, produits, ventes, dettes, factures, historique, parametres
+│   └── pdf_utils.py        # Factures et reçus PDF
+│── tests/                  # Tests pytest (logique des dettes + chaque page)
+│── static/styles.css
 ```
 
 ---
@@ -113,6 +115,7 @@ Le projet repose sur une structuration des données proche des CRM :
 * **Produits** : catalogue et stock
 * **Ventes** : transactions liées aux clients
 * **Factures** : documents générés
+* **Dettes** → **Échéances** (plan de remboursement) et **Paiements** (tous les encaissements)
 
 👉 Cette modélisation permet :
 
@@ -127,8 +130,10 @@ Le projet repose sur une structuration des données proche des CRM :
 * **Python** (logique applicative)
 * **Streamlit** (interface utilisateur)
 * **Pandas** (traitement des données)
-* **SQL / CSV** (stockage des données)
-* **ReportLab / PDF** (génération de factures)
+* **SQLite + SQLAlchemy** (stockage des données)
+* **fpdf2** (factures et reçus PDF)
+* **Plotly** (graphiques)
+* **pytest** (tests)
 
 ---
 
@@ -169,8 +174,13 @@ source venv/bin/activate
 
 pip install -r requirements.txt
 
+python demo_data.py        # optionnel : données de démonstration
 streamlit run app_crm.py
 ```
+
+Une base créée avec une ancienne version est mise à jour automatiquement au lancement (aucune donnée perdue).
+
+Lancer les tests : `python -m pytest -q`
 
 ---
 
@@ -186,6 +196,10 @@ streamlit run app_crm.py
 
 ## 📈 Perspectives d’amélioration
 
+* Comptes utilisateurs (gérant / vendeur) et journal des actions
+* Envoi automatique des relances WhatsApp (API WhatsApp Business)
+* Paiement Wave / Orange Money par lien ou QR code
+* Mode hors-ligne / application mobile, multi-boutiques
 * Intégration d’une base SQL (PostgreSQL / MySQL)
 * Ajout d’API pour interconnexion (approche SI)
 * Module de marketing automation (emailing)

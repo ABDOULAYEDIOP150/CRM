@@ -1,51 +1,11 @@
 """
-Package de la couche base de données
-Ce module initialise les composants d'accès aux données
+Package de la couche base de données.
+
+- models.py : modèles SQLAlchemy (clients, produits, ventes, dettes, échéances, paiements, paramètres)
+- dettes.py : logique métier des dettes (échéancier, paiements, retards, relances)
+- utils.py  : statistiques et paramètres
 """
-from .models import Base, Client, Produit, Vente, VenteProduit, HistoriqueVente, init_db, get_session
-from .utils import get_stats_periode, get_top_produits, get_evolution_ca, get_repartition_modes_livraison
+from .models import (Base, Client, Produit, Vente, VenteProduit, HistoriqueVente, Dette, Echeance,
+                     Paiement, Parametre, init_db, get_session)
 
-# Version du package DB
-__version__ = "1.0.0"
-
-# Exports principaux pour faciliter l'import
-__all__ = [
-    # Modèles
-    "Base",
-    "Client",
-    "Produit",
-    "Vente",
-    "VenteProduit",
-    "HistoriqueVente",
-    "init_db",
-    "get_session",
-    
-    # Utilitaires
-    "get_stats_periode",
-    "get_top_produits",
-    "get_evolution_ca",
-    "get_repartition_modes_livraison"
-]
-
-# Initialisation rapide (optionnel)
-def init_db_quick():
-    """Fonction rapide pour initialiser la base de données"""
-    engine = init_db()
-    return get_session()
-
-# Documentation du package
-__doc__ = """
-Package DB pour CRM Professionnel
-=================================
-
-Ce package gère toutes les interactions avec la base de données SQLite.
-
-Modules:
-    - models.py: Définition des modèles SQLAlchemy
-    - utils.py: Fonctions utilitaires pour les requêtes
-
-Utilisation typique:
-    from db import get_session, Client
-    session = get_session()
-    clients = session.query(Client).all()
-"""
+__version__ = "3.0.0"
