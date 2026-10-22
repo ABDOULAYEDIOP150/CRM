@@ -8,7 +8,7 @@ import pytest
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, RACINE)
 
-PAGES = ["Accueil", "Ventes", "Dettes", "Clients", "Produits", "Documents", "Paramètres", "Base"]
+PAGES = ["Accueil", "Alertes", "Ventes", "Dettes", "Clients", "Produits", "Documents", "Paramètres", "Base", "Aide"]
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -109,3 +109,22 @@ def test_connexion_par_mot_de_passe(monkeypatch):
     at.text_input[0].input("dakar2026")
     at.button[0].click().run()
     assert [b for b in at.button if "Clients" in b.label]
+
+
+def test_recherche_produit_avec_suggestions():
+    """Choisir un produit dans la recherche (ex. « ci » → Ciment) l'ajoute au panier."""
+    from db.models import Produit, get_session
+
+    with get_session() as s:
+        ciment = s.query(Produit).filter(Produit.nom.ilike("ci%")).first()
+        tous = [p.id for p in s.query(Produit)]
+    at = _app()
+    at.session_state["page"] = "Ventes"
+    at.run()
+    recherche = at.selectbox(key="recherche_produit")
+    assert set(recherche.options) and len(recherche.options) == len(tous)  # tous les produits de la base
+    assert "Ciment" in recherche.options[0] or any("Ciment" in o for o in recherche.options)
+    recherche.set_value(ciment.id).run()
+    assert not at.exception, at.exception
+    assert at.session_state["panier"].get(ciment.id) == 1
+    assert at.selectbox(key="recherche_produit").value is None  # prêt pour le produit suivant

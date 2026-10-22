@@ -63,7 +63,14 @@ class Produit(Base):
     prix = Column(Float)  # prix de vente
     prix_achat = Column(Float, default=0)  # pour calculer la marge
     stock = Column(Integer)
+    categorie = Column(String, default="Divers")
+    unite = Column(String, default="pièce")  # sac, kg, barre, mètre, litre…
+    seuil_alerte = Column(Integer, nullable=True)  # vide = seuil général des paramètres
+    reference = Column(String, default="")
     ventes_assoc = relationship("VenteProduit", back_populates="produit")
+
+    def seuil(self, defaut):
+        return self.seuil_alerte if self.seuil_alerte is not None else defaut
 
 
 class Vente(Base):

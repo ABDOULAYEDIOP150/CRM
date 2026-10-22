@@ -5,10 +5,22 @@ from pathlib import Path
 import streamlit as st
 
 import config
-from db import dettes as D
+from db import alertes as A
 from db.models import get_session, init_db
 from db.utils import get_params
-from modules import auth, base_donnees, clients, dashboard, dettes, parametres, produits, ventes, ventes_documents
+from modules import (
+    aide,
+    alertes,
+    auth,
+    base_donnees,
+    clients,
+    dashboard,
+    dettes,
+    parametres,
+    produits,
+    ventes,
+    ventes_documents,
+)
 
 config.setup_page()
 
@@ -37,7 +49,13 @@ config.DEVISE = params["devise"]
 
 # Pages : (clé, icône, libellé, fonction)
 MENU = [
-    (None, [("Accueil", "🏠", "Tableau de bord", dashboard.show_dashboard)]),
+    (
+        None,
+        [
+            ("Accueil", "🏠", "Tableau de bord", dashboard.show_dashboard),
+            ("Alertes", "🔔", "Alertes", alertes.show_alertes),
+        ],
+    ),
     (
         "Vendre",
         [
@@ -58,6 +76,7 @@ MENU = [
         [
             ("Paramètres", "⚙️", "Paramètres", parametres.show_parametres),
             ("Base", "🗄️", "Base de données", base_donnees.show_base),
+            ("Aide", "❓", "Guide rapide", aide.show_aide),
         ],
     ),
 ]
@@ -69,7 +88,7 @@ if page not in PAGES:
 st.session_state["page"] = page
 
 with get_session() as s:
-    nb_retards = len(D.resume_creances(s, jours_alerte=int(params["jours_alerte_echeance"]))["retards"])
+    compte = A.compter(A.calculer_alertes(s, params))
 
 with st.sidebar:
     st.markdown(
@@ -80,8 +99,10 @@ with st.sidebar:
             st.markdown(f"<p class='crm-menu-title'>{section}</p>", unsafe_allow_html=True)
         for cle, icone, libelle, _ in items:
             texte = f"{icone}  {libelle}"
-            if cle == "Dettes" and nb_retards:
-                texte += f"  · 🔴 {nb_retards}"
+            if cle == "Alertes" and compte[A.CRITIQUE] + compte[A.ATTENTION]:
+                texte += f"  · {compte[A.CRITIQUE] + compte[A.ATTENTION]}"
+            if cle == "Dettes" and compte["dette_retard"]:
+                texte += f"  · 🔴 {compte['dette_retard']}"
             if st.button(
                 texte, key=f"menu_{cle}", use_container_width=True, type="primary" if cle == page else "secondary"
             ):

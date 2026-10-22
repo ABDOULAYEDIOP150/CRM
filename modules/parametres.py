@@ -20,9 +20,18 @@ def show_parametres():
         with c2:
             ninea = st.text_input("NINEA", p["boutique_ninea"])
             rccm = st.text_input("RCCM", p["boutique_rccm"])
-            seuil = st.number_input("Seuil d'alerte stock", min_value=0, value=int(p["seuil_stock"]))
+            seuil = st.number_input("Seuil général de stock faible", min_value=0, value=int(p["seuil_stock"]))
             jours = st.number_input(
-                "Alerter X jours avant une échéance", min_value=0, max_value=30, value=int(p["jours_alerte_echeance"])
+                "Alerter combien de jours avant un paiement prévu ?",
+                min_value=0,
+                max_value=30,
+                value=int(p["jours_alerte_echeance"]),
+            )
+            dormant = st.number_input(
+                "Signaler un produit non vendu depuis (jours)",
+                min_value=7,
+                max_value=365,
+                value=int(p["jours_stock_dormant"]),
             )
         msg = st.text_area(
             "Modèle du message de relance",
@@ -41,6 +50,7 @@ def show_parametres():
                     "boutique_rccm": rccm,
                     "seuil_stock": seuil,
                     "jours_alerte_echeance": jours,
+                    "jours_stock_dormant": dormant,
                     "message_relance": msg,
                 }
             )

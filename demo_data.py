@@ -1,5 +1,5 @@
 """
-Remplit la base avec des données de démonstration (boutique à Dakar).
+Remplit la base avec des données de démonstration (quincaillerie à Dakar).
 Usage :  python demo_data.py        (n'ajoute rien si des clients existent déjà)
 """
 
@@ -17,15 +17,25 @@ CLIENTS = [
     ("Aminata Ba", "77 300 88 21", "Liberté 6"),
     ("Cheikh Mbaye", "78 111 22 33", "Guédiawaye"),
 ]
+# (nom, prix de vente, prix d'achat, stock, catégorie, unité, seuil d'alerte)
 PRODUITS = [
-    ("Riz parfumé 25 kg", 17500, 15500, 30),
-    ("Huile 5 L", 6500, 5600, 25),
-    ("Sucre 1 kg", 700, 600, 80),
-    ("Lait en poudre 400 g", 2500, 2100, 2),
-    ("Thé vert (paquet)", 1000, 800, 40),
-    ("Savon (carton)", 9000, 7800, 10),
-    ("Téléphone Itel", 25000, 21000, 5),
+    ("Ciment CPJ 45 - 50 kg", 4600, 4150, 120, "Ciment & maçonnerie", "sac", 20),
+    ("Fer à béton 10 mm", 3500, 3000, 60, "Fer & métaux", "barre", 15),
+    ("Fer à béton 8 mm", 2300, 1950, 8, "Fer & métaux", "barre", 15),
+    ("Tôle ondulée 2 m", 4800, 4000, 40, "Fer & métaux", "pièce", 10),
+    ("Clous 70 mm", 1200, 950, 35, "Quincaillerie générale", "kg", 10),
+    ("Tuyau PVC 32 mm", 2500, 1900, 50, "Plomberie", "barre", 10),
+    ("Robinet laiton", 3500, 2600, 0, "Plomberie", "pièce", 5),
+    ("Fil électrique 2,5 mm²", 14000, 11500, 12, "Électricité", "rouleau", 5),
+    ("Ampoule LED 12 W", 1000, 700, 60, "Électricité", "pièce", 20),
+    ("Peinture à eau blanche 20 L", 22000, 18000, 9, "Peinture", "seau", 4),
+    ("Café Touba 250 g", 1000, 800, 40, "Alimentation", "paquet", 10),
+    ("Allumettes (paquet de 10)", 250, 180, 100, "Alimentation", "paquet", 20),
+    # produits qui ne se vendent pas (stock dormant)
+    ("Brouette renforcée", 28000, 23000, 6, "Outillage", "pièce", 2),
+    ("Échelle alu 3 m", 45000, 38000, 3, "Outillage", "pièce", 1),
 ]
+NB_VENDUS = 12  # les 2 derniers produits ne sont jamais vendus
 
 
 def main():
@@ -44,7 +54,10 @@ def main():
             )
             for n, t, a in CLIENTS
         ]
-        produits = [Produit(nom=n, prix=p, prix_achat=pa, stock=st) for n, p, pa, st in PRODUITS]
+        produits = [
+            Produit(nom=n, prix=p, prix_achat=pa, stock=st, categorie=cat, unite=u, seuil_alerte=se)
+            for n, p, pa, st, cat, u, se in PRODUITS
+        ]
         s.add_all(clients + produits)
         s.flush()
         for i in range(25):
@@ -53,7 +66,7 @@ def main():
             v = Vente(client_id=c.id, date=jour, mode_livraison="Retrait en magasin", mode_paiement="Espèces")
             s.add(v)
             s.flush()
-            for p in random.sample(produits[:-1], k=random.randint(1, 3)):
+            for p in random.sample([x for x in produits[:NB_VENDUS] if x.stock > 5], k=random.randint(1, 3)):
                 q = random.randint(1, 3)
                 s.add(VenteProduit(vente_id=v.id, produit_id=p.id, quantite=q, prix_unit=p.prix))
                 s.add(

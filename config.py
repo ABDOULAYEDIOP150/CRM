@@ -11,7 +11,8 @@ APP_ICON = "💼"
 # Valeurs par défaut (modifiables dans Paramètres, stockées en base)
 SEUIL_STOCK = 2
 DEVISE = "FCFA"
-JOURS_ALERTE_ECHEANCE = 3
+JOURS_ALERTE_ECHEANCE = 2  # alerte X jours avant un paiement prévu
+JOURS_STOCK_DORMANT = 30  # produit en stock mais pas vendu depuis X jours
 
 PARAMETRES_DEFAUT = {
     "boutique_nom": "Ma Boutique",
@@ -23,6 +24,7 @@ PARAMETRES_DEFAUT = {
     "devise": DEVISE,
     "seuil_stock": str(SEUIL_STOCK),
     "jours_alerte_echeance": str(JOURS_ALERTE_ECHEANCE),
+    "jours_stock_dormant": str(JOURS_STOCK_DORMANT),
     "message_relance": (
         "Bonjour {client}, ceci est un rappel amical de {boutique} : "
         "il reste {reste} à régler. Prochaine échéance : {echeance}. "
@@ -39,6 +41,20 @@ FREQUENCES = {
 }
 
 CLIENT_PASSAGE = "Client de passage"
+
+UNITES = ["pièce", "sac", "kg", "barre", "mètre", "rouleau", "litre", "seau", "boîte", "paquet", "carton", "lot"]
+CATEGORIES_DEFAUT = [
+    "Ciment & maçonnerie",
+    "Fer & métaux",
+    "Plomberie",
+    "Électricité",
+    "Peinture",
+    "Quincaillerie générale",
+    "Outillage",
+    "Alimentation",
+    "Divers",
+]
+
 
 # Couleurs
 PRIMARY_BLUE = "#1e3a8a"

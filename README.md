@@ -1,6 +1,6 @@
 # 🚀 CRM PRO - Application de Gestion Commerciale & Données Clients
 
-![Version](https://img.shields.io/badge/version-4.0.0-blue)
+![Version](https://img.shields.io/badge/version-5.0.0-blue)
 ![Python](https://img.shields.io/badge/python-3.8%2B-green)
 ![Streamlit](https://img.shields.io/badge/streamlit-1.28%2B-red)
 ![License](https://img.shields.io/badge/license-MIT-orange)
@@ -57,7 +57,7 @@ Dans de nombreuses organisations, les données clients sont :
 ## 🧠 Fonctionnalités principales
 
 ### 🛒 Caisse (nouvelle vente) — en 4 étapes
-1. Cliquer sur les produits à vendre (catalogue avec prix et stock)
+1. Taper les premières lettres d'un produit : **suggestions automatiques** depuis la base (« ci » → Ciment, « ca » → Café), ou parcourir le catalogue par catégorie
 2. Choisir le client (ou « Client de passage », ou en créer un avec ➕)
 3. **Payé comptant** ou **À crédit (dette)** : le choix est visible dès l'ouverture
    - comptant : moyen de paiement (Espèces, Wave, Orange Money…) et monnaie à rendre
@@ -75,13 +75,29 @@ Dans de nombreuses organisations, les données clients sont :
 * **Reçu de versement** pour chaque avance ou remboursement (« déjà versé / reste à payer »)
 * **Facture** avec situation de paiement, **relevé de compte client**
 
-### 🏠 Tableau de bord · 👥 Clients · 📦 Produits
-* Chiffre d'affaires, argent encaissé, dettes à encaisser, retards ; liste « À faire aujourd'hui »
-* Fiche client : achats, dettes, versements, relevé ; produits modifiables directement dans le tableau
+### 🏠 Tableau de bord (pensé pour une quincaillerie / boutique)
+* **À traiter en priorité** : les alertes urgentes avec boutons Encaisser / WhatsApp / Commander
+* **Aujourd'hui** : ventes du jour (vs hier), argent encaissé, bénéfice, nombre de ventes, caisse par moyen de paiement
+* **Activité** (semaine / mois / année) : chiffre d'affaires, bénéfice et marge, encaissé, dettes, valeur du stock
+* Onglets **Ventes** (par jour, par catégorie, produits qui rapportent), **Dettes** (ancienneté, top débiteurs, prévu sous 7 j), **Stock** (à commander, argent immobilisé par catégorie), **Clients** (meilleurs clients, nouveaux)
+
+### 🔔 Alertes (page séparée)
+* 🔴 Urgent : dettes en retard, ruptures de stock
+* 🟠 À surveiller : client qui doit payer aujourd'hui ou **dans les 2 jours**, stock faible (seuil par produit), plafond de crédit dépassé, produit vendu sous son prix d'achat
+* ℹ️ Information : stock qui ne se vend pas depuis 30 jours, prix d'achat manquants
+
+### 👥 Clients · 📦 Produits · ❓ Guide rapide
+* Fiche client : achats, dettes, versements, relevé
+* Produits avec catégorie, unité (sac, barre, kg…), seuil d'alerte ; **réception de marchandise** ; modification dans le tableau
+* Guide rapide intégré pour former un vendeur en 10 minutes
 
 ### 🗄️ Base de données
 * SQLite en local, **PostgreSQL** en ligne (Neon / Supabase) ; tables créées et mises à jour automatiquement
 * Page dédiée : type de base, nombre d'enregistrements, **export Excel complet** et sauvegarde du fichier
+
+| Tableau de bord | Alertes | Recherche produit |
+|---|---|---|
+| ![Tableau de bord](docs/dashboard.png) | ![Alertes](docs/alertes.png) | ![Recherche](docs/recherche.png) |
 
 | Caisse | Dettes | Documents |
 |---|---|---|

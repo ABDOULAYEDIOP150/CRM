@@ -10,7 +10,7 @@ target-version = "py310"
 
 [tool.ruff.lint]
 select = ["E", "F", "W", "I", "B", "UP"]
-ignore = ["E741"]  # variable « l » (ligne) utilisée volontairement
+ignore = ["E741", "E501"]  # « l » utilisé volontairement ; longueur gérée par ruff format (sauf textes)
 
 [tool.ruff.lint.isort]
 known-first-party = ["config", "db", "modules", "demo_data"]

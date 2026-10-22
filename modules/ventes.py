@@ -41,30 +41,68 @@ def show_ventes():
 
 
 # ------------------------------------------------------------------ ① Catalogue
+def _ajouter_depuis_recherche():
+    """Appelé quand on choisit un produit dans la liste de suggestions : ajout au panier puis remise à zéro."""
+    pid = st.session_state.get("recherche_produit")
+    if pid is None:
+        return
+    panier = _panier()
+    with get_session() as s:
+        p = s.get(Produit, pid)
+        if p and p.stock > panier.get(pid, 0):
+            panier[pid] = panier.get(pid, 0) + 1
+            st.session_state[f"q_{pid}"] = panier[pid]
+            st.session_state["dernier_ajout"] = f"{p.nom} ajouté au panier"
+        elif p:
+            st.session_state["dernier_ajout"] = f"⚠️ Plus de stock pour {p.nom}"
+    st.session_state["recherche_produit"] = None
+
+
 def _catalogue(session):
     panier = _panier()
     st.markdown("##### ① Produits")
-    recherche = st.text_input(
-        "Rechercher un produit", placeholder="🔎  Riz, huile, savon…", label_visibility="collapsed"
-    )
-    q = session.query(Produit).order_by(Produit.nom)
-    if recherche:
-        q = q.filter(Produit.nom.ilike(f"%{recherche}%"))
-    produits = q.all()
-    if not produits:
+    tous = session.query(Produit).order_by(Produit.nom).all()
+    if not tous:
         st.info("Aucun produit. Ajoutez vos produits dans **Produits & stock**.")
         if st.button("📦 Ajouter des produits"):
             config.aller_a("Produits")
         return
+    par_id = {p.id: p for p in tous}
+
+    # Recherche avec suggestions : tapez « c » → Ciment, Café… (tous les produits enregistrés en base)
+    st.selectbox(
+        "Rechercher un produit",
+        list(par_id),
+        index=None,
+        key="recherche_produit",
+        on_change=_ajouter_depuis_recherche,
+        placeholder="🔎  Tapez les premières lettres du produit (ex. « ci » → Ciment), puis Entrée",
+        format_func=lambda i: (
+            f"{par_id[i].nom}  —  {fmt_money(par_id[i].prix)}  ·  stock {par_id[i].stock} {par_id[i].unite or 'pièce'}"
+        ),
+        label_visibility="collapsed",
+    )
+    if "dernier_ajout" in st.session_state:
+        msg = st.session_state.pop("dernier_ajout")
+        (st.warning if msg.startswith("⚠️") else st.success)(msg, icon=None if msg.startswith("⚠️") else "✅")
+
+    # …ou parcourir le catalogue par catégorie
+    categories = sorted({p.categorie or "Divers" for p in tous})
+    cat = None
+    if len(categories) > 1:
+        cat = st.pills("Catégorie", categories, key="cat_vente", label_visibility="collapsed")
+    produits = [p for p in tous if cat is None or (p.categorie or "Divers") == cat]
     cols = st.columns(3)
     for i, p in enumerate(produits):
         dans_panier = panier.get(p.id, 0)
         dispo = p.stock - dans_panier
+        unite = p.unite or "pièce"
         with cols[i % 3].container(border=True):
+            etat = "Rupture de stock" if p.stock <= 0 else f"Stock : {p.stock} {unite}"
             st.markdown(
-                f"<div class='crm-prod'>{p.nom}</div><div class='crm-prix'>{fmt_money(p.prix)}</div>"
-                f"<div class='crm-stock'>{'Rupture de stock' if p.stock <= 0 else f'Stock : {p.stock}'}"
-                f"{f' · {dans_panier} au panier' if dans_panier else ''}</div>",
+                f"<div class='crm-prod'>{p.nom}</div><div class='crm-prix'>{fmt_money(p.prix)}"
+                f"<small style='color:#64748b;font-weight:400'> / {unite}</small></div>"
+                f"<div class='crm-stock'>{etat}{f' · {dans_panier} au panier' if dans_panier else ''}</div>",
                 unsafe_allow_html=True,
             )
             if st.button("➕ Ajouter", key=f"add_{p.id}", use_container_width=True, disabled=dispo <= 0):
