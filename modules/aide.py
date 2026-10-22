@@ -50,10 +50,15 @@ GUIDES = [
     (
         "📦 Gérer le stock",
         [
-            "Nouveau produit : **Produits & stock → ➕ Nouveau produit** (nom, catégorie, unité, prix, stock, seuil d'alerte).",
-            "Arrivage du fournisseur : **📥 Réception de marchandise** → choisir le produit, la quantité reçue.",
-            "Corriger un prix ou un stock : double-cliquez dans le tableau, modifiez, puis **💾 Enregistrer**.",
-            "Le **seuil d'alerte** : quand le stock descend à ce niveau, une alerte « stock faible » apparaît.",
+            "Le **Catalogue produits** est la liste de vos produits : nom, **code** (ex. SAB-001), catégorie, unité. "
+            "Pas de prix ni de quantité ici.",
+            "À chaque achat chez un fournisseur : **Entrée de stock** → tapez le code ou le nom du produit, la "
+            "**quantité achetée**, le **prix d'achat** (par unité ou total payé) et le **prix de vente**. "
+            "La marge s'affiche avant de valider.",
+            "Chaque arrivage garde son prix d'achat : les plus anciens sont vendus en premier, le bénéfice reste exact.",
+            "**État du stock** : quantités, valeur, marge, détail des arrivages ; changez un prix de vente sans racheter.",
+            "**Inventaire** : tapez ce que vous avez compté, les écarts sont corrigés et notés dans le journal.",
+            "Beaucoup de produits ? **Catalogue → Importer depuis Excel**.",
         ],
     ),
     (

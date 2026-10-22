@@ -28,7 +28,9 @@ def resume_ventes(session, debut, fin):
             if p:
                 par_produit[p.nom][0] += vp.quantite
                 par_produit[p.nom][1] += montant
-            if p and p.prix_achat:
+            if vp.cout is not None:  # coût réel des lots vendus
+                benefice += montant - vp.cout
+            elif p and p.prix_achat:  # anciennes ventes : prix d'achat moyen
                 benefice += montant - p.prix_achat * vp.quantite
             else:
                 marge_connue = False

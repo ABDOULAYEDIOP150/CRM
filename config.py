@@ -23,6 +23,7 @@ PARAMETRES_DEFAUT = {
     "boutique_rccm": "",
     "devise": DEVISE,
     "police": "Inter",
+    "marge_defaut": "20",  # % de marge proposé pour le prix de vente lors d'une entrée de stock
     "seuil_stock": str(SEUIL_STOCK),
     "jours_alerte_echeance": str(JOURS_ALERTE_ECHEANCE),
     "jours_stock_dormant": str(JOURS_STOCK_DORMANT),
@@ -69,7 +70,22 @@ def css_police(nom):
     return f"<style>@import url('{url}'); {cible} {{ font-family: '{nom}', sans-serif !important; }}</style>"
 
 
-UNITES = ["pièce", "sac", "kg", "barre", "mètre", "rouleau", "litre", "seau", "boîte", "paquet", "carton", "lot"]
+UNITES = [
+    "pièce",
+    "sac",
+    "kg",
+    "tonne",
+    "m³",
+    "barre",
+    "mètre",
+    "rouleau",
+    "litre",
+    "seau",
+    "boîte",
+    "paquet",
+    "carton",
+    "lot",
+]
 CATEGORIES_DEFAUT = [
     "Ciment & maçonnerie",
     "Fer & métaux",

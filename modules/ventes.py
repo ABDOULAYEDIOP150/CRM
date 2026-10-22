@@ -8,7 +8,7 @@ import config
 from config import CLIENT_PASSAGE, fmt_date, fmt_money
 from db import dettes as D
 from db.models import Client, HistoriqueVente, Paiement, Produit, Vente, VenteProduit, get_session
-from db.stock import mouvement
+from db.stock import ErreurStock, sortie_stock
 from db.utils import client_de_passage, get_params
 from modules import documents
 
@@ -64,9 +64,9 @@ def _catalogue(session):
     st.markdown("##### ① Produits")
     tous = session.query(Produit).order_by(Produit.nom).all()
     if not tous:
-        st.info("Aucun produit. Ajoutez vos produits dans **Produits & stock**.")
+        st.info("Aucun produit. Ajoutez vos produits dans le **Catalogue**, puis faites une **Entrée de stock**.")
         if st.button("📦 Ajouter des produits"):
-            config.aller_a("Produits")
+            config.aller_a("Catalogue")
         return
     par_id = {p.id: p for p in tous}
 
@@ -270,8 +270,9 @@ def _valider(session, client, panier, remise, total, credit, acompte, nb, freque
         session.flush()
         for pid, q in panier.items():
             p = session.get(Produit, pid)
-            session.add(VenteProduit(vente_id=vente.id, produit_id=pid, quantite=q, prix_unit=p.prix))
-            mouvement(session, p, -q, "Vente", f"Facture F-{vente.id:05d} · {client.nom}")
+            prix_vente = p.prix
+            cout = sortie_stock(session, p, q, "Vente", f"Facture F-{vente.id:05d} · {client.nom}")
+            session.add(VenteProduit(vente_id=vente.id, produit_id=pid, quantite=q, prix_unit=prix_vente, cout=cout))
             session.add(
                 HistoriqueVente(
                     vente_id=vente.id,
@@ -279,7 +280,7 @@ def _valider(session, client, panier, remise, total, credit, acompte, nb, freque
                     client_telephone=client.telephone,
                     produit_nom=p.nom,
                     quantite=q,
-                    prix_unit=p.prix,
+                    prix_unit=prix_vente,
                     date=datetime.now(),
                 )
             )
@@ -301,7 +302,7 @@ def _valider(session, client, panier, remise, total, credit, acompte, nb, freque
                 Paiement(client_id=client.id, vente_id=vente.id, montant=total, mode=mode, note="Paiement comptant")
             )
         session.commit()
-    except D.ErreurDette as e:
+    except (D.ErreurDette, ErreurStock) as e:
         session.rollback()
         st.error(str(e))
         return

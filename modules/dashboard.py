@@ -81,7 +81,7 @@ def show_dashboard():
         if b[1].button("💰 Encaisser une dette", use_container_width=True):
             config.aller_a("Dettes")
         if b[2].button("📦 Ajouter du stock", use_container_width=True):
-            config.aller_a("Produits")
+            config.aller_a("Entrees")
         if b[3].button(f"🔔 Alertes ({n[A.CRITIQUE] + n[A.ATTENTION]})", use_container_width=True):
             config.aller_a("Alertes")
 

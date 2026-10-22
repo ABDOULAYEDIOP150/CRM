@@ -8,6 +8,7 @@ from datetime import date, datetime, timedelta
 
 from db import dettes as D
 from db.models import Client, HistoriqueVente, Paiement, Produit, Vente, VenteProduit, get_session
+from db.stock import entree_stock, generer_code, sortie_stock
 
 CLIENTS = [
     ("Awa Ndiaye", "77 412 33 10", "Parcelles Assainies"),
@@ -20,6 +21,7 @@ CLIENTS = [
 # (nom, prix de vente, prix d'achat, stock, catégorie, unité, seuil d'alerte)
 PRODUITS = [
     ("Ciment CPJ 45 - 50 kg", 4600, 4150, 120, "Ciment & maçonnerie", "sac", 20),
+    ("Sable de mer", 18000, 13000, 9, "Ciment & maçonnerie", "m³", 3),
     ("Fer à béton 10 mm", 3500, 3000, 60, "Fer & métaux", "barre", 15),
     ("Fer à béton 8 mm", 2300, 1950, 8, "Fer & métaux", "barre", 15),
     ("Tôle ondulée 2 m", 4800, 4000, 40, "Fer & métaux", "pièce", 10),
@@ -35,7 +37,7 @@ PRODUITS = [
     ("Brouette renforcée", 28000, 23000, 6, "Outillage", "pièce", 2),
     ("Échelle alu 3 m", 45000, 38000, 3, "Outillage", "pièce", 1),
 ]
-NB_VENDUS = 12  # les 2 derniers produits ne sont jamais vendus
+NB_VENDUS = 13  # les 2 derniers produits ne sont jamais vendus
 
 
 def main():
@@ -54,21 +56,53 @@ def main():
             )
             for n, t, a in CLIENTS
         ]
-        produits = [
-            Produit(nom=n, prix=p, prix_achat=pa, stock=st, categorie=cat, unite=u, seuil_alerte=se)
-            for n, p, pa, st, cat, u, se in PRODUITS
-        ]
-        s.add_all(clients + produits)
+        produits = []
+        for n, pv, pa, st, cat, u, se in PRODUITS:
+            p = Produit(
+                nom=n, reference=generer_code(s, n), stock=0, prix_achat=0, categorie=cat, unite=u, seuil_alerte=se
+            )
+            s.add_all([p])
+            s.flush()
+            debut = datetime.now() - timedelta(days=75)
+            if st == 0:  # produit acheté puis entièrement vendu -> rupture
+                entree_stock(s, p, 3, pa, pv, "Quincaillerie Sandaga", date=debut)
+                sortie_stock(s, p, 3, "Vente", "Ventes anciennes", date=debut + timedelta(days=20))
+            elif len(produits) < 2:  # deux arrivages : le prix du fournisseur a augmenté
+                entree_stock(s, p, max(st // 2, 1), round(pa * 0.95, -1), pv, "SOCOCIM Industries", date=debut)
+                entree_stock(
+                    s,
+                    p,
+                    st - max(st // 2, 1) + 20,
+                    pa,
+                    pv,
+                    "SOCOCIM Industries",
+                    date=datetime.now() - timedelta(days=20),
+                )
+            else:
+                entree_stock(
+                    s,
+                    p,
+                    st + (4 if st < se else 15),
+                    pa,
+                    pv,
+                    random.choice(["Quincaillerie Sandaga", "Ets Diallo & Fils"]),
+                    date=debut,
+                )
+            produits.append(p)
+        s.add_all(clients)
         s.flush()
-        for i in range(25):
-            jour = datetime.now() - timedelta(days=random.randint(0, 60), hours=random.randint(0, 8))
+        jours = sorted(
+            datetime.now() - timedelta(days=random.randint(0, 60), hours=random.randint(0, 8)) for _ in range(25)
+        )
+        for i, jour in enumerate(jours):
             c = random.choice(clients)
             v = Vente(client_id=c.id, date=jour, mode_livraison="Retrait en magasin", mode_paiement="Espèces")
             s.add(v)
             s.flush()
             for p in random.sample([x for x in produits[:NB_VENDUS] if x.stock > 5], k=random.randint(1, 3)):
                 q = random.randint(1, 3)
-                s.add(VenteProduit(vente_id=v.id, produit_id=p.id, quantite=q, prix_unit=p.prix))
+                cout = sortie_stock(s, p, q, "Vente", f"Facture F-{v.id:05d} · {c.nom}", date=jour)
+                s.add(VenteProduit(vente_id=v.id, produit_id=p.id, quantite=q, prix_unit=p.prix, cout=cout))
                 s.add(
                     HistoriqueVente(
                         vente_id=v.id,

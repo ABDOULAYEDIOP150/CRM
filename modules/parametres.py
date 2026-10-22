@@ -65,8 +65,12 @@ def show_parametres():
     actuelle = p.get("police", "Inter")
     noms = list(config.POLICES)
     a, b = st.columns([2, 3], vertical_alignment="center")
-    choix = a.selectbox("Police", noms, index=noms.index(actuelle) if actuelle in noms else 0,
-                        format_func=lambda n: f"{n} — {config.POLICES[n]}")  # fmt: skip
+    choix = a.selectbox(
+        "Police",
+        noms,
+        index=noms.index(actuelle) if actuelle in noms else 0,
+        format_func=lambda n: f"{n} — {config.POLICES[n]}",
+    )
     url = "https://fonts.googleapis.com/css2?family=" + choix.replace(" ", "+") + ":wght@400;700&display=swap"
     b.markdown(
         f"<style>@import url('{url}');</style><div style=\"font-family:'{choix}',sans-serif;font-size:1.15rem;"

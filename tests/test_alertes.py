@@ -7,6 +7,7 @@ import pytest
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from db import dettes as D  # noqa: E402
+from db import stock as S  # noqa: E402
 from db.alertes import calculer_alertes, compter  # noqa: E402
 from db.models import Client, Produit, Vente, VenteProduit, get_session  # noqa: E402
 
@@ -48,8 +49,11 @@ def test_alertes_stock(session):
     fer = Produit(nom="Fer 10", prix=3000, prix_achat=2500, stock=3, unite="barre")
     clou = Produit(nom="Clous", prix=900, prix_achat=1000, stock=50, seuil_alerte=10)
     vieux = Produit(nom="Brouette", prix=25000, prix_achat=20000, stock=4, seuil_alerte=1)
-    session.add_all([ciment, fer, clou, vieux])
+    jamais = Produit(nom="Sable", prix=0, stock=0)  # au catalogue mais jamais acheté : pas d'alerte
+    session.add_all([ciment, fer, clou, vieux, jamais])
     session.flush()
+    S.entree_stock(session, ciment, 2, 4000, 4500)
+    S.sortie_stock(session, ciment, 2)  # tout vendu -> rupture
     v = Vente(client_id=None, date=datetime(2026, 10, 20))
     session.add(v)
     session.flush()
@@ -60,5 +64,6 @@ def test_alertes_stock(session):
     assert ("stock_faible", "Fer 10") in t
     assert ("perte", "Clous") in t and ("stock_faible", "Clous") not in t
     assert ("dormant", "Brouette") in t and ("dormant", "Clous") not in t
+    assert not any(n == "Sable" for _, n in t)
     c = compter(calculer_alertes(session, PARAMS, AUJ))
     assert c["rupture"] == 1 and c["critique"] >= 1

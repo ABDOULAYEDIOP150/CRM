@@ -1,6 +1,6 @@
 # 🚀 CRM PRO - Application de Gestion Commerciale & Données Clients
 
-![Version](https://img.shields.io/badge/version-5.1.0-blue)
+![Version](https://img.shields.io/badge/version-6.0.0-blue)
 ![Python](https://img.shields.io/badge/python-3.8%2B-green)
 ![Streamlit](https://img.shields.io/badge/streamlit-1.28%2B-red)
 ![License](https://img.shields.io/badge/license-MIT-orange)
@@ -85,6 +85,14 @@ Dans de nombreuses organisations, les données clients sont :
 * 🔴 Urgent : dettes en retard, ruptures de stock
 * 🟠 À surveiller : client qui doit payer aujourd'hui ou **dans les 2 jours**, stock faible (seuil par produit), plafond de crédit dépassé, produit vendu sous son prix d'achat
 * ℹ️ Information : stock qui ne se vend pas depuis 30 jours, prix d'achat manquants
+
+### 📦 Stock : catalogue séparé + entrées de stock (lots)
+* **Catalogue produits** = la liste de référence : **code court** (ex. SAB-001, généré automatiquement), nom, catégorie, unité, seuil. Ni prix ni quantité.
+* **Entrée de stock** = un achat : on tape le code ou le nom, la **quantité achetée**, le **prix d'achat** (unitaire ou total payé), le **prix de vente** ; la marge et le bénéfice attendu s'affichent avant de valider. Historique des achats par fournisseur.
+* Chaque arrivage est un **lot** avec son propre prix d'achat ; les ventes consomment les plus anciens d'abord (**FIFO**) → **bénéfice exact** même quand le prix du fournisseur change.
+* **État du stock** (valeur, marge, détail des lots, changement de prix), **inventaire** par comptage, **journal** de tous les mouvements.
+
+![Entrée de stock](docs/entree_stock.png)
 
 ### 👥 Clients · 📦 Produits · ❓ Guide rapide
 * Fiche client : achats, dettes, versements, relevé

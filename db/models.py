@@ -66,8 +66,9 @@ class Produit(Base):
     categorie = Column(String, default="Divers")
     unite = Column(String, default="pièce")  # sac, kg, barre, mètre, litre…
     seuil_alerte = Column(Integer, nullable=True)  # vide = seuil général des paramètres
-    reference = Column(String, default="")
+    reference = Column(String, default="")  # code court du produit (ex. SAB-001), unique
     ventes_assoc = relationship("VenteProduit", back_populates="produit")
+    lots = relationship("LotStock", back_populates="produit", order_by="LotStock.date, LotStock.id")
 
     def seuil(self, defaut):
         return self.seuil_alerte if self.seuil_alerte is not None else defaut
@@ -102,6 +103,7 @@ class VenteProduit(Base):
     produit_id = Column(Integer, ForeignKey("produits.id"))
     quantite = Column(Integer, default=1)
     prix_unit = Column(Float, default=0.0)
+    cout = Column(Float, nullable=True)  # coût d'achat réel de la ligne (lots consommés), pour le bénéfice exact
     vente = relationship("Vente", back_populates="produits")
     produit = relationship("Produit", back_populates="ventes_assoc")
 
@@ -188,6 +190,26 @@ class Paiement(Base):
     vente = relationship("Vente", back_populates="paiements")
 
 
+class LotStock(Base):
+    """Une entrée de stock = un achat précis : quantité, prix d'achat, prix de vente fixé, fournisseur.
+
+    Le stock d'un produit est la somme des quantités restantes de ses lots. Les ventes consomment
+    d'abord les lots les plus anciens (premier entré, premier sorti), ce qui donne le bénéfice exact.
+    """
+
+    __tablename__ = "lots_stock"
+    id = Column(Integer, primary_key=True)
+    produit_id = Column(Integer, ForeignKey("produits.id"), nullable=False)
+    date = Column(DateTime, default=datetime.now)
+    quantite = Column(Integer, nullable=False)  # quantité achetée
+    restant = Column(Integer, nullable=False)  # quantité encore en stock
+    prix_achat = Column(Float, nullable=False)  # prix d'achat unitaire
+    prix_vente = Column(Float, nullable=True)  # prix de vente décidé à l'entrée
+    fournisseur = Column(String, default="")
+    note = Column(String, default="")
+    produit = relationship("Produit", back_populates="lots")
+
+
 class MouvementStock(Base):
     """Journal de chaque entrée / sortie de stock : on sait toujours pourquoi un stock a changé."""
 
@@ -238,6 +260,11 @@ def init_db(url=None):
         Base.metadata.create_all(engine)
         _migrer(engine)
         _ENGINES[url] = engine
+        from .stock import synchroniser_lots  # import local : stock.py importe ce module
+
+        with sessionmaker(bind=engine)() as s:
+            synchroniser_lots(s)
+            s.commit()
     return _ENGINES[url]
 
 

@@ -8,7 +8,20 @@ import pytest
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, RACINE)
 
-PAGES = ["Accueil", "Alertes", "Ventes", "Dettes", "Clients", "Produits", "Documents", "Paramètres", "Base", "Aide"]
+PAGES = [
+    "Accueil",
+    "Alertes",
+    "Ventes",
+    "Dettes",
+    "Entrees",
+    "Produits",
+    "Catalogue",
+    "Clients",
+    "Documents",
+    "Paramètres",
+    "Base",
+    "Aide",
+]
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -128,3 +141,28 @@ def test_recherche_produit_avec_suggestions():
     assert not at.exception, at.exception
     assert at.session_state["panier"].get(ciment.id) == 1
     assert at.selectbox(key="recherche_produit").value is None  # prêt pour le produit suivant
+
+
+def test_entree_de_stock():
+    """Choisir un produit du catalogue, dire combien on en a acheté, à quel prix, et à combien on le revend."""
+    from db.models import LotStock, Produit, get_session
+
+    with get_session() as s:
+        sable = s.query(Produit).filter(Produit.nom == "Sable de mer").one()
+        stock_avant, lots_avant = sable.stock, s.query(LotStock).count()
+    at = _app()
+    at.session_state["page"] = "Entrees"
+    at.run()
+    at.selectbox(key="entree_produit").set_value(sable.id).run()
+    at.number_input(key="entree_qte").set_value(10).run()
+    at.number_input(key=f"entree_pa_{sable.id}").set_value(14000).run()
+    pv = [n for n in at.number_input if n.key and n.key.startswith(f"entree_pv_{sable.id}_")][0]
+    pv.set_value(19000).run()
+    assert any("Bénéfice" in s.value and "5 000" in s.value for s in at.success)
+    [b for b in at.button if "Enregistrer l'entrée" in b.label][0].click().run()
+    assert not at.exception, at.exception
+    with get_session() as s:
+        sable = s.query(Produit).filter(Produit.nom == "Sable de mer").one()
+        assert sable.stock == stock_avant + 10 and sable.prix == 19000
+        assert s.query(LotStock).count() == lots_avant + 1
+        assert sable.lots[-1].prix_achat == 14000

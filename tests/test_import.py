@@ -34,6 +34,7 @@ def test_analyse_et_import(session):
         "PV": ["4 700", "1000", None, "abc", None],
         "Qté": [5, 40, 3, 1, None],
         "Unité": ["Sac", "paquet", "pièce", "kg", None],
+        "PA": [None, 800, None, 950, None],
     })  # fmt: skip
     lignes, _ = I.analyser(session, df)
     actions = {l["nom"]: l["action"] for l in lignes}
@@ -43,7 +44,8 @@ def test_analyse_et_import(session):
     ciment = session.query(Produit).filter_by(reference="CIM50").one()
     assert ciment.prix == 4700 and ciment.stock == 15 and ciment.unite == "sac"
     cafe = session.query(Produit).filter_by(nom="Café Touba").one()
-    assert cafe.stock == 40 and cafe.categorie == "Divers"
+    assert cafe.stock == 40 and cafe.categorie == "Divers" and cafe.reference == "CAF-001"
+    assert cafe.prix_achat == 800 and cafe.prix == 1000 and len(cafe.lots) == 1
     assert session.query(MouvementStock).count() == 2
 
 

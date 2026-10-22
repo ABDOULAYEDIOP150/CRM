@@ -13,9 +13,11 @@ from modules import (
     alertes,
     auth,
     base_donnees,
+    catalogue,
     clients,
     dashboard,
     dettes,
+    entrees,
     parametres,
     produits,
     ventes,
@@ -66,10 +68,17 @@ MENU = [
         ],
     ),
     (
+        "Stock",
+        [
+            ("Entrees", "📥", "Entrée de stock", entrees.show_entrees),
+            ("Produits", "📦", "État du stock", produits.show_produits),
+            ("Catalogue", "📚", "Catalogue produits", catalogue.show_catalogue),
+        ],
+    ),
+    (
         "Gérer",
         [
             ("Clients", "👥", "Clients", clients.show_clients),
-            ("Produits", "📦", "Produits & stock", produits.show_produits),
             ("Documents", "📄", "Ventes & documents", ventes_documents.show_ventes_documents),
         ],
     ),

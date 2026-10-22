@@ -151,6 +151,8 @@ def calculer_alertes(session, params, aujourdhui=None):
         seuil = p.seuil(seuil_defaut)
         unite = p.unite or "pièce"
         if (p.stock or 0) <= 0:
+            if not p.lots:  # produit du catalogue jamais acheté : pas une rupture
+                continue
             alertes.append(
                 Alerte(
                     "rupture",
@@ -159,7 +161,7 @@ def calculer_alertes(session, params, aujourdhui=None):
                     "plus rien en stock : commander",
                     0,
                     "Commander",
-                    "Produits",
+                    "Entrees",
                     {},
                     produit_id=p.id,
                 )
@@ -173,7 +175,7 @@ def calculer_alertes(session, params, aujourdhui=None):
                     f"reste {p.stock} {unite}(s) (seuil {seuil})",
                     0,
                     "Commander",
-                    "Produits",
+                    "Entrees",
                     {},
                     produit_id=p.id,
                     tri=p.stock,
@@ -209,7 +211,7 @@ def calculer_alertes(session, params, aujourdhui=None):
                     produit_id=p.id,
                 )
             )
-        if not p.prix_achat:
+        if not p.prix_achat and (p.stock or 0) > 0:
             alertes.append(
                 Alerte(
                     "sans_prix_achat",
@@ -218,7 +220,7 @@ def calculer_alertes(session, params, aujourdhui=None):
                     "renseignez le prix d'achat pour connaître la marge",
                     0,
                     "Compléter",
-                    "Produits",
+                    "Entrees",
                     {},
                     produit_id=p.id,
                 )
