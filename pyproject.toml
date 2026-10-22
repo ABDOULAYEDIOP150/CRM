@@ -1,0 +1,20 @@
+[project]
+name = "crm-pro"
+version = "3.1.0"
+description = "CRM / gestion de boutique avec suivi des dettes clients (Streamlit)"
+requires-python = ">=3.10"
+
+[tool.ruff]
+line-length = 120
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP"]
+ignore = ["E741"]  # variable « l » (ligne) utilisée volontairement
+
+[tool.ruff.lint.isort]
+known-first-party = ["config", "db", "modules", "demo_data"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+filterwarnings = ["ignore::DeprecationWarning"]

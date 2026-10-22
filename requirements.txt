@@ -3,4 +3,4 @@ pandas>=2.0
 plotly>=5.18
 fpdf2>=2.7
 sqlalchemy>=2.0
-pytest>=8.0
+psycopg2-binary>=2.9

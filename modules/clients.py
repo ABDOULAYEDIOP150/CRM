@@ -1,10 +1,10 @@
-import config
 import pandas as pd
 import streamlit as st
 
+import config
 from config import fmt_money
-from db.models import get_session, Client
 from db import dettes as D
+from db.models import Client, get_session
 
 
 def show_clients():
@@ -26,9 +26,13 @@ def _formulaire(session):
         tel = st.text_input("Téléphone *", value=c.telephone if c else "", placeholder="77 123 45 67")
         email = st.text_input("Email", value=(c.email or "") if c else "")
         adresse = st.text_input("Adresse / quartier", value=(c.adresse or "") if c else "")
-        plafond = st.number_input("Plafond de crédit (FCFA, 0 = sans limite)", min_value=0, step=5000,
-                                  value=int(c.plafond_credit or 0) if c else 0,
-                                  help="Montant maximum de dette autorisé pour ce client")
+        plafond = st.number_input(
+            "Plafond de crédit (FCFA, 0 = sans limite)",
+            min_value=0,
+            step=5000,
+            value=int(c.plafond_credit or 0) if c else 0,
+            help="Montant maximum de dette autorisé pour ce client",
+        )
         notes = st.text_area("Notes", value=(c.notes or "") if c else "", height=80)
         if st.form_submit_button("Enregistrer", use_container_width=True):
             if not nom or not tel:
@@ -63,18 +67,28 @@ def _liste(session):
     if not clients:
         st.info("Aucun client trouvé")
         return
-    df = pd.DataFrame([{
-        "Nom": c.nom,
-        "Téléphone": c.telephone,
-        "Adresse": c.adresse or "",
-        "Achats": len(c.ventes),
-        "Total acheté": sum(v.total for v in c.ventes),
-        "Dette en cours": D.encours_client(session, c.id),
-        "En retard": "🔴" if D.client_en_retard(session, c.id) else "",
-        "Client depuis": c.date_creation.strftime("%d/%m/%Y") if c.date_creation else "",
-    } for c in clients])
-    st.dataframe(df, hide_index=True, use_container_width=True, column_config={
-        c: st.column_config.NumberColumn(format="%d FCFA") for c in ["Total acheté", "Dette en cours"]})
+    df = pd.DataFrame(
+        [
+            {
+                "Nom": c.nom,
+                "Téléphone": c.telephone,
+                "Adresse": c.adresse or "",
+                "Achats": len(c.ventes),
+                "Total acheté": sum(v.total for v in c.ventes),
+                "Dette en cours": D.encours_client(session, c.id),
+                "En retard": "🔴" if D.client_en_retard(session, c.id) else "",
+                "Client depuis": c.date_creation.strftime("%d/%m/%Y") if c.date_creation else "",
+            }
+            for c in clients
+        ]
+    )
+    st.dataframe(
+        df,
+        hide_index=True,
+        use_container_width=True,
+        column_config={c: st.column_config.NumberColumn(format="%d FCFA") for c in ["Total acheté", "Dette en cours"]},
+    )
     st.caption(f"{len(df)} client(s) · Dettes totales : {fmt_money(df['Dette en cours'].sum())}")
-    st.download_button("⬇️ Exporter (CSV)", df.to_csv(index=False, sep=";").encode("utf-8-sig"),
-                       "clients.csv", "text/csv")
+    st.download_button(
+        "⬇️ Exporter (CSV)", df.to_csv(index=False, sep=";").encode("utf-8-sig"), "clients.csv", "text/csv"
+    )

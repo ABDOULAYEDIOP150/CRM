@@ -16,3 +16,6 @@ Thumbs.db
 .vscode/
 # Tests
 .pytest_cache/
+
+# Secrets Streamlit
+.streamlit/secrets.toml

@@ -6,12 +6,13 @@ Principe :
 - Les Paiement liés à la dette remboursent les échéances dans l'ordre (la plus ancienne d'abord).
 - Une échéance dont la date est passée et qui n'est pas entièrement couverte = RETARD.
 """
+
 import calendar
 import re
 from datetime import date, datetime, timedelta
 from urllib.parse import quote
 
-from .models import Client, Dette, Echeance, Paiement
+from .models import Dette, Echeance, Paiement
 
 STATUT_SOLDEE = "Soldée"
 STATUT_RETARD = "En retard"
@@ -24,6 +25,7 @@ class ErreurDette(ValueError):
 
 
 # ---------- Échéancier ----------
+
 
 def ajouter_mois(d, n):
     mois = d.month - 1 + n
@@ -56,8 +58,20 @@ def generer_echeancier(montant, nb_versements, date_premiere, frequence="Mensuel
 
 # ---------- Création / paiements ----------
 
-def creer_dette(session, client_id, montant, nb_versements=1, date_premiere=None, frequence="Mensuelle",
-                acompte=0, mode_acompte="Espèces", vente_id=None, description="", date_creation=None):
+
+def creer_dette(
+    session,
+    client_id,
+    montant,
+    nb_versements=1,
+    date_premiere=None,
+    frequence="Mensuelle",
+    acompte=0,
+    mode_acompte="Espèces",
+    vente_id=None,
+    description="",
+    date_creation=None,
+):
     montant = round(float(montant))
     acompte = round(float(acompte or 0))
     if montant <= 0:
@@ -67,16 +81,32 @@ def creer_dette(session, client_id, montant, nb_versements=1, date_premiere=None
     date_creation = date_creation or datetime.now()
     date_premiere = date_premiere or ajouter_mois(date_creation.date(), 1)
 
-    dette = Dette(client_id=client_id, vente_id=vente_id, montant=montant, acompte=acompte,
-                  regle_avant_echeancier=acompte, frequence=frequence, description=description,
-                  date_creation=date_creation)
+    dette = Dette(
+        client_id=client_id,
+        vente_id=vente_id,
+        montant=montant,
+        acompte=acompte,
+        regle_avant_echeancier=acompte,
+        frequence=frequence,
+        description=description,
+        date_creation=date_creation,
+    )
     session.add(dette)
     session.flush()
     for i, (d, m) in enumerate(generer_echeancier(montant - acompte, nb_versements, date_premiere, frequence), 1):
         session.add(Echeance(dette_id=dette.id, numero=i, date_prevue=d, montant_prevu=m))
     if acompte > 0:
-        session.add(Paiement(client_id=client_id, dette_id=dette.id, vente_id=vente_id, montant=acompte,
-                             mode=mode_acompte, note="Acompte", date=date_creation))
+        session.add(
+            Paiement(
+                client_id=client_id,
+                dette_id=dette.id,
+                vente_id=vente_id,
+                montant=acompte,
+                mode=mode_acompte,
+                note="Acompte",
+                date=date_creation,
+            )
+        )
     session.flush()
     session.refresh(dette)
     return dette
@@ -90,8 +120,15 @@ def enregistrer_paiement(session, dette, montant, mode="Espèces", note="", date
         raise ErreurDette("Le montant doit être positif.")
     if montant > dette.reste:
         raise ErreurDette(f"Le montant dépasse le reste à payer ({round(dette.reste)}).")
-    p = Paiement(client_id=dette.client_id, dette_id=dette.id, vente_id=dette.vente_id, montant=montant,
-                 mode=mode, note=note, date=date_paiement or datetime.now())
+    p = Paiement(
+        client_id=dette.client_id,
+        dette_id=dette.id,
+        vente_id=dette.vente_id,
+        montant=montant,
+        mode=mode,
+        note=note,
+        date=date_paiement or datetime.now(),
+    )
     session.add(p)
     session.flush()
     session.refresh(dette)
@@ -124,6 +161,7 @@ def annuler_dette(session, dette):
 
 # ---------- Analyse ----------
 
+
 def _today(aujourdhui):
     if aujourdhui is None:
         return date.today()
@@ -147,19 +185,30 @@ def etat_echeances(dette, aujourdhui=None):
             statut = "Partielle"
         else:
             statut = "À venir"
-        lignes.append({
-            "numero": e.numero, "date": e.date_prevue, "montant": e.montant_prevu,
-            "couvert": couvert, "reste": reste, "statut": statut,
-            "jours_retard": (today - e.date_prevue).days if statut == "En retard" else 0,
-        })
+        lignes.append(
+            {
+                "numero": e.numero,
+                "date": e.date_prevue,
+                "montant": e.montant_prevu,
+                "couvert": couvert,
+                "reste": reste,
+                "statut": statut,
+                "jours_retard": (today - e.date_prevue).days if statut == "En retard" else 0,
+            }
+        )
     return lignes
 
 
 def situation_dette(dette, aujourdhui=None):
     """Résumé : statut global, montant en retard, jours de retard, prochaine échéance."""
     if dette.statut == "annulee":
-        return {"statut": STATUT_ANNULEE, "montant_retard": 0, "jours_retard": 0,
-                "prochaine_date": None, "prochain_montant": 0}
+        return {
+            "statut": STATUT_ANNULEE,
+            "montant_retard": 0,
+            "jours_retard": 0,
+            "prochaine_date": None,
+            "prochain_montant": 0,
+        }
     lignes = etat_echeances(dette, aujourdhui)
     retards = [l for l in lignes if l["statut"] == "En retard"]
     a_payer = [l for l in lignes if l["reste"] > 0]
@@ -187,8 +236,10 @@ def encours_client(session, client_id):
 
 
 def client_en_retard(session, client_id, aujourdhui=None):
-    return any(situation_dette(d, aujourdhui)["statut"] == STATUT_RETARD
-               for d in session.query(Dette).filter_by(client_id=client_id, statut="en_cours"))
+    return any(
+        situation_dette(d, aujourdhui)["statut"] == STATUT_RETARD
+        for d in session.query(Dette).filter_by(client_id=client_id, statut="en_cours")
+    )
 
 
 def resume_creances(session, aujourdhui=None, jours_alerte=3):
@@ -221,11 +272,12 @@ def resume_creances(session, aujourdhui=None, jours_alerte=3):
 
 # ---------- Relance WhatsApp ----------
 
+
 def normaliser_telephone(tel, indicatif="221"):
     chiffres = re.sub(r"\D", "", tel or "")
     if chiffres.startswith("00"):
         chiffres = chiffres[2:]
-    if len(chiffres) == 9:          # numéro sénégalais local : 77 123 45 67
+    if len(chiffres) == 9:  # numéro sénégalais local : 77 123 45 67
         chiffres = indicatif + chiffres
     return chiffres
 
@@ -237,8 +289,12 @@ def lien_whatsapp(tel, message):
 
 def message_relance(modele, client, reste, prochaine_date, boutique, telephone, fmt_money):
     try:
-        return modele.format(client=client.nom, reste=fmt_money(reste),
-                             echeance=prochaine_date.strftime("%d/%m/%Y") if prochaine_date else "—",
-                             boutique=boutique, telephone=telephone)
+        return modele.format(
+            client=client.nom,
+            reste=fmt_money(reste),
+            echeance=prochaine_date.strftime("%d/%m/%Y") if prochaine_date else "—",
+            boutique=boutique,
+            telephone=telephone,
+        )
     except (KeyError, IndexError):
         return modele

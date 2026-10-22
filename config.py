@@ -1,6 +1,7 @@
 # config.py
-import streamlit as st
 from datetime import datetime, timedelta
+
+import streamlit as st
 
 # ========== Paramètres généraux ==========
 APP_NAME = "CRM Professionnel"
@@ -8,9 +9,9 @@ APP_ICON = "💼"
 LAYOUT = "wide"
 
 # Valeurs par défaut (modifiables dans la page ⚙️ Paramètres, stockées en base)
-SEUIL_STOCK = 2                 # alerte stock faible
-DEVISE = "FCFA"                 # Franc CFA (XOF) — pas de centimes
-JOURS_ALERTE_ECHEANCE = 3       # alerte X jours avant une échéance
+SEUIL_STOCK = 2  # alerte stock faible
+DEVISE = "FCFA"  # Franc CFA (XOF) — pas de centimes
+JOURS_ALERTE_ECHEANCE = 3  # alerte X jours avant une échéance
 
 PARAMETRES_DEFAUT = {
     "boutique_nom": "Ma Boutique",

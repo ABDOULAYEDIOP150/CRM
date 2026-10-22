@@ -4,9 +4,9 @@ import pandas as pd
 import streamlit as st
 
 import config
-from config import fmt_money, fmt_date
-from db.models import get_session, Client, Produit, Vente, VenteProduit, HistoriqueVente, Paiement
+from config import fmt_date, fmt_money
 from db import dettes as D
+from db.models import Client, HistoriqueVente, Paiement, Produit, Vente, VenteProduit, get_session
 
 
 def _panier():
@@ -29,24 +29,30 @@ def _page(session):
     col1, col2 = st.columns(2)
     with col1:
         st.markdown("### Client")
-        client = config.choisir("Choisir un client", clients, lambda c: f"{c.nom} ({c.telephone})",
-                                key="vente_client")
+        client = config.choisir("Choisir un client", clients, lambda c: f"{c.nom} ({c.telephone})", key="vente_client")
         encours = D.encours_client(session, client.id)
         en_retard = D.client_en_retard(session, client.id)
-        st.markdown(f"""
+        st.markdown(
+            f"""
             <div style='background-color:#dbeafe;padding:1rem;border-radius:8px;margin-top:0.5rem;'>
                 <p style='margin:0'><strong>{client.nom}</strong> — {client.telephone}</p>
                 <p style='margin:4px 0 0 0'>Dette en cours : <strong>{fmt_money(encours)}</strong>
-                {' · Plafond : ' + fmt_money(client.plafond_credit) if client.plafond_credit else ''}</p>
+                {" · Plafond : " + fmt_money(client.plafond_credit) if client.plafond_credit else ""}</p>
             </div>
-        """, unsafe_allow_html=True)
+        """,
+            unsafe_allow_html=True,
+        )
         if en_retard:
             st.error("⛔ Ce client a une dette EN RETARD. Pensez à la relancer avant de lui faire crédit.")
 
     with col2:
         st.markdown("### Livraison")
-        mode_livraison = st.radio("Mode de livraison", ["Retrait en magasin", "Livraison à domicile"],
-                                  horizontal=True, label_visibility="collapsed")
+        mode_livraison = st.radio(
+            "Mode de livraison",
+            ["Retrait en magasin", "Livraison à domicile"],
+            horizontal=True,
+            label_visibility="collapsed",
+        )
         st.markdown("### Recherche produit")
         recherche = st.text_input("Nom du produit", placeholder="Ex : riz, huile, téléphone…")
 
@@ -59,11 +65,15 @@ def _page(session):
         cols = st.columns(3)
         for i, p in enumerate(trouves):
             with cols[i % 3]:
-                st.markdown(f"""
-                    <div style='border:1px solid #e2e8f0;padding:0.8rem;border-radius:8px;margin-bottom:0.5rem;background:white'>
+                st.markdown(
+                    f"""
+                    <div style='border:1px solid #e2e8f0;padding:0.8rem;border-radius:8px;
+                                margin-bottom:0.5rem;background:white'>
                         <h4 style='margin:0;color:#1e3a8a;'>{p.nom}</h4>
                         <p style='margin:4px 0 0 0;'>{fmt_money(p.prix)} · Stock : {p.stock}</p>
-                    </div>""", unsafe_allow_html=True)
+                    </div>""",
+                    unsafe_allow_html=True,
+                )
                 qty = st.number_input("Quantité", min_value=1, max_value=p.stock, step=1, key=f"qty_{p.id}")
                 if st.button("➕ Ajouter", key=f"add_{p.id}"):
                     panier[p.id] = min(panier.get(p.id, 0) + qty, p.stock)
@@ -82,20 +92,33 @@ def _page(session):
             panier.pop(pid)
             continue
         sous_total += p.prix * qty
-        lignes.append({"ID": pid, "Produit": p.nom, "Prix unitaire": p.prix, "Quantité": qty,
-                       "Stock dispo": p.stock, "Total": p.prix * qty})
+        lignes.append(
+            {
+                "ID": pid,
+                "Produit": p.nom,
+                "Prix unitaire": p.prix,
+                "Quantité": qty,
+                "Stock dispo": p.stock,
+                "Total": p.prix * qty,
+            }
+        )
     df = pd.DataFrame(lignes)
     edite = st.data_editor(
-        df, hide_index=True, use_container_width=True, key="editeur_panier",
+        df,
+        hide_index=True,
+        use_container_width=True,
+        key="editeur_panier",
         disabled=["ID", "Produit", "Prix unitaire", "Stock dispo", "Total"],
-        column_config={"ID": None,
-                       "Quantité": st.column_config.NumberColumn(min_value=0, step=1,
-                                                                 help="Mettre 0 pour retirer le produit"),
-                       "Prix unitaire": st.column_config.NumberColumn(format="%d"),
-                       "Total": st.column_config.NumberColumn(format="%d")},
+        column_config={
+            "ID": None,
+            "Quantité": st.column_config.NumberColumn(min_value=0, step=1, help="Mettre 0 pour retirer le produit"),
+            "Prix unitaire": st.column_config.NumberColumn(format="%d"),
+            "Total": st.column_config.NumberColumn(format="%d"),
+        },
     )
-    changements = {int(r.ID): int(r["Quantité"]) for _, r in edite.iterrows()
-                   if int(r["Quantité"]) != panier.get(int(r.ID))}
+    changements = {
+        int(r.ID): int(r["Quantité"]) for _, r in edite.iterrows() if int(r["Quantité"]) != panier.get(int(r.ID))
+    }
     if changements:
         for pid, q in changements.items():
             if q <= 0:
@@ -122,23 +145,27 @@ def _page(session):
         st.markdown("#### 📅 Conditions de la dette")
         d1, d2, d3, d4 = st.columns(4)
         with d1:
-            acompte = st.number_input("Acompte versé aujourd'hui", min_value=0,
-                                      max_value=max(int(total) - 1, 0), step=500, value=0)
+            acompte = st.number_input(
+                "Acompte versé aujourd'hui", min_value=0, max_value=max(int(total) - 1, 0), step=500, value=0
+            )
         with d2:
             nb_versements = st.number_input("Nombre de versements", min_value=1, max_value=36, value=1)
         with d3:
             frequence = st.selectbox("Fréquence", list(config.FREQUENCES))
         with d4:
-            date_premiere = st.date_input("1ère échéance", value=D.ajouter_mois(date.today(), 1),
-                                          min_value=date.today(), format="DD/MM/YYYY")
+            date_premiere = st.date_input(
+                "1ère échéance", value=D.ajouter_mois(date.today(), 1), min_value=date.today(), format="DD/MM/YYYY"
+            )
         plan = D.generer_echeancier(total - acompte, nb_versements, date_premiere, frequence)
         if plan:
             st.caption("Échéancier prévu : " + " · ".join(f"{fmt_date(d)} → {fmt_money(m)}" for d, m in plan))
 
         nouvel_encours = encours + total - acompte
         if client.plafond_credit and nouvel_encours > client.plafond_credit:
-            st.warning(f"⚠️ Avec cette vente, la dette du client passerait à {fmt_money(nouvel_encours)}, "
-                       f"au-dessus de son plafond de {fmt_money(client.plafond_credit)}.")
+            st.warning(
+                f"⚠️ Avec cette vente, la dette du client passerait à {fmt_money(nouvel_encours)}, "
+                f"au-dessus de son plafond de {fmt_money(client.plafond_credit)}."
+            )
             forcer = st.checkbox("Autoriser quand même ce crédit")
         else:
             forcer = True
@@ -147,11 +174,17 @@ def _page(session):
 
     recap = f"Total : {fmt_money(total)}"
     if credit:
-        recap += f" &nbsp;·&nbsp; Payé aujourd'hui : {fmt_money(acompte)} &nbsp;·&nbsp; Reste dû : {fmt_money(total - acompte)}"
-    st.markdown(f"""
+        recap += (
+            f" &nbsp;·&nbsp; Payé aujourd'hui : {fmt_money(acompte)}"
+            f" &nbsp;·&nbsp; Reste dû : {fmt_money(total - acompte)}"
+        )
+    st.markdown(
+        f"""
         <div style='background-color:#1e3a8a;color:white;padding:1rem;border-radius:8px;margin:1rem 0;'>
             <h3 style='margin:0;color:white;'>{recap}</h3>
-        </div>""", unsafe_allow_html=True)
+        </div>""",
+        unsafe_allow_html=True,
+    )
 
     b1, b2, b3 = st.columns(3)
     with b2:
@@ -168,30 +201,59 @@ def _page(session):
             st.error("Stock insuffisant pour : " + ", ".join(manquants))
             return
         try:
-            vente = Vente(client_id=client.id, mode_livraison=mode_livraison, remise=remise,
-                          mode_paiement="Crédit" if credit else mode_paiement)
+            vente = Vente(
+                client_id=client.id,
+                mode_livraison=mode_livraison,
+                remise=remise,
+                mode_paiement="Crédit" if credit else mode_paiement,
+            )
             session.add(vente)
             session.flush()
             for pid, q in panier.items():
                 p = session.get(Produit, pid)
                 session.add(VenteProduit(vente_id=vente.id, produit_id=pid, quantite=q, prix_unit=p.prix))
                 p.stock -= q
-                session.add(HistoriqueVente(vente_id=vente.id, client_nom=client.nom,
-                                            client_telephone=client.telephone, produit_nom=p.nom, quantite=q,
-                                            prix_unit=p.prix, date=datetime.now()))
+                session.add(
+                    HistoriqueVente(
+                        vente_id=vente.id,
+                        client_nom=client.nom,
+                        client_telephone=client.telephone,
+                        produit_nom=p.nom,
+                        quantite=q,
+                        prix_unit=p.prix,
+                        date=datetime.now(),
+                    )
+                )
             if credit:
-                D.creer_dette(session, client.id, total, nb_versements=nb_versements, date_premiere=date_premiere,
-                              frequence=frequence, acompte=acompte, mode_acompte=mode_paiement, vente_id=vente.id,
-                              description=f"Vente F-{vente.id:05d}")
+                D.creer_dette(
+                    session,
+                    client.id,
+                    total,
+                    nb_versements=nb_versements,
+                    date_premiere=date_premiere,
+                    frequence=frequence,
+                    acompte=acompte,
+                    mode_acompte=mode_paiement,
+                    vente_id=vente.id,
+                    description=f"Vente F-{vente.id:05d}",
+                )
             else:
-                session.add(Paiement(client_id=client.id, vente_id=vente.id, montant=total, mode=mode_paiement,
-                                     note="Paiement comptant"))
+                session.add(
+                    Paiement(
+                        client_id=client.id,
+                        vente_id=vente.id,
+                        montant=total,
+                        mode=mode_paiement,
+                        note="Paiement comptant",
+                    )
+                )
             session.commit()
         except D.ErreurDette as e:
             session.rollback()
             st.error(str(e))
             return
         st.session_state["panier"] = {}
-        st.session_state["flash"] = (f"✅ Vente F-{vente.id:05d} enregistrée"
-                                     + (" — dette créée, visible dans 💳 Dettes." if credit else "."))
+        st.session_state["flash"] = f"✅ Vente F-{vente.id:05d} enregistrée" + (
+            " — dette créée, visible dans 💳 Dettes." if credit else "."
+        )
         st.rerun()

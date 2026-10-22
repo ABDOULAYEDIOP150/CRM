@@ -1,9 +1,10 @@
 """Génération des PDF : factures (avec situation de paiement) et reçus de paiement."""
+
 from datetime import datetime
 
 from fpdf import FPDF
 
-from config import fmt_money, fmt_date
+from config import fmt_date, fmt_money
 from db.dettes import etat_echeances
 
 BLEU = (30, 58, 138)
@@ -31,8 +32,11 @@ class PDF(FPDF):
         self.set_y(8)
         self.cell(0, 12, _t(self.params["boutique_nom"].upper()), align="C", new_x="LMARGIN", new_y="NEXT")
         self.set_font("Helvetica", "", 9)
-        infos = " | ".join(x for x in [self.params["boutique_adresse"], self.params["boutique_telephone"],
-                                       self.params["boutique_email"]] if x)
+        infos = " | ".join(
+            x
+            for x in [self.params["boutique_adresse"], self.params["boutique_telephone"], self.params["boutique_email"]]
+            if x
+        )
         self.cell(0, 6, _t(infos), align="C", new_x="LMARGIN", new_y="NEXT")
         self.set_y(40)
         self.set_text_color(0, 0, 0)
@@ -41,8 +45,8 @@ class PDF(FPDF):
         self.set_y(-15)
         self.set_font("Helvetica", "I", 8)
         self.set_text_color(100, 100, 100)
-        legal = " - ".join(x for x in [f"NINEA : {self.params['boutique_ninea']}" if self.params["boutique_ninea"] else "",
-                                       f"RCCM : {self.params['boutique_rccm']}" if self.params["boutique_rccm"] else ""] if x)
+        mentions = [("NINEA", self.params["boutique_ninea"]), ("RCCM", self.params["boutique_rccm"])]
+        legal = " - ".join(f"{nom} : {val}" for nom, val in mentions if val)
         self.cell(0, 5, _t(legal or "Merci pour votre confiance !"), align="C")
 
     def titre_bandeau(self, texte):
@@ -117,13 +121,20 @@ def generer_facture(vente, params):
         if dette.reste > 0 and dette.echeances:
             pdf.ln(2)
             pdf.set_font("Helvetica", "B", 10)
-            pdf.cell(0, 6, _t("Échéancier de remboursement :"),
-                     new_x="LMARGIN", new_y="NEXT")
+            pdf.cell(0, 6, _t("Échéancier de remboursement :"), new_x="LMARGIN", new_y="NEXT")
             pdf.set_font("Helvetica", "", 10)
             for l in etat_echeances(dette):
-                pdf.cell(0, 6, _t(f"  {l['numero']}. {fmt_date(l['date'])} : {fmt_money(l['montant'])}"
-                                  + (f" - reste {fmt_money(l['reste'])}" if 0 < l['couvert'] < l['montant'] else "")
-                                  + f"  ({l['statut']})"), new_x="LMARGIN", new_y="NEXT")
+                pdf.cell(
+                    0,
+                    6,
+                    _t(
+                        f"  {l['numero']}. {fmt_date(l['date'])} : {fmt_money(l['montant'])}"
+                        + (f" - reste {fmt_money(l['reste'])}" if 0 < l["couvert"] < l["montant"] else "")
+                        + f"  ({l['statut']})"
+                    ),
+                    new_x="LMARGIN",
+                    new_y="NEXT",
+                )
     else:
         pdf.ligne(f"Payé comptant ({vente.mode_paiement or 'Espèces'})", fmt_money(vente.total))
         pdf.ligne("Reste à payer", fmt_money(0), gras=True)
@@ -138,8 +149,7 @@ def generer_recu(paiement, params):
     pdf.cell(0, 10, _t("REÇU DE PAIEMENT"), align="C", new_x="LMARGIN", new_y="NEXT")
     pdf.set_font("Helvetica", "", 11)
     pdf.cell(95, 7, _t(f"Reçu N° R-{paiement.id:05d}"))
-    pdf.cell(95, 7, _t(f"Date : {paiement.date.strftime('%d/%m/%Y %H:%M')}"), align="R",
-             new_x="LMARGIN", new_y="NEXT")
+    pdf.cell(95, 7, _t(f"Date : {paiement.date.strftime('%d/%m/%Y %H:%M')}"), align="R", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(4)
     pdf.titre_bandeau("CLIENT")
     pdf.cell(0, 6, _t(f"{paiement.client.nom} - {paiement.client.telephone or ''}"), new_x="LMARGIN", new_y="NEXT")

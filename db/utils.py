@@ -4,10 +4,11 @@ import pandas as pd
 from sqlalchemy import func
 
 import config
-from .models import get_session, Vente, Produit, VenteProduit, Paiement, Parametre
 
+from .models import Paiement, Parametre, Produit, Vente, VenteProduit, get_session
 
 # ---------- Paramètres boutique ----------
+
 
 def get_params():
     with get_session() as s:
@@ -28,11 +29,13 @@ def set_params(valeurs: dict):
 
 # ---------- Statistiques ----------
 
+
 def get_stats_periode(debut, fin):
     with get_session() as s:
         ventes = s.query(Vente).filter(Vente.date.between(debut, fin)).all()
-        encaisse = s.query(func.coalesce(func.sum(Paiement.montant), 0)).filter(
-            Paiement.date.between(debut, fin)).scalar()
+        encaisse = (
+            s.query(func.coalesce(func.sum(Paiement.montant), 0)).filter(Paiement.date.between(debut, fin)).scalar()
+        )
         marge = 0
         for v in ventes:
             for vp in v.produits:
@@ -51,11 +54,15 @@ def get_stats_periode(debut, fin):
 
 def get_top_produits(limite=10, debut=None, fin=None):
     with get_session() as s:
-        q = s.query(
-            Produit.nom,
-            func.sum(VenteProduit.quantite).label("total_quantite"),
-            func.sum(VenteProduit.quantite * VenteProduit.prix_unit).label("ca_total"),
-        ).join(VenteProduit).join(Vente)
+        q = (
+            s.query(
+                Produit.nom,
+                func.sum(VenteProduit.quantite).label("total_quantite"),
+                func.sum(VenteProduit.quantite * VenteProduit.prix_unit).label("ca_total"),
+            )
+            .join(VenteProduit)
+            .join(Vente)
+        )
         if debut and fin:
             q = q.filter(Vente.date.between(debut, fin))
         res = q.group_by(Produit.nom).order_by(func.sum(VenteProduit.quantite).desc()).limit(limite).all()
@@ -74,8 +81,9 @@ def get_evolution_ca(jours=30):
             ca[v.date.date()] = ca.get(v.date.date(), 0) + v.total
         for p in s.query(Paiement).filter(Paiement.date.between(debut, fin)):
             enc[p.date.date()] = enc.get(p.date.date(), 0) + p.montant
-    return pd.DataFrame({"Date": jours_liste, "CA": [ca[d] for d in jours_liste],
-                         "Encaissé": [enc[d] for d in jours_liste]})
+    return pd.DataFrame(
+        {"Date": jours_liste, "CA": [ca[d] for d in jours_liste], "Encaissé": [enc[d] for d in jours_liste]}
+    )
 
 
 def get_repartition_modes_livraison(debut=None, fin=None):

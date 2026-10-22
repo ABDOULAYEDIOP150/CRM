@@ -1,9 +1,10 @@
 # 🚀 CRM PRO - Application de Gestion Commerciale & Données Clients
 
-![Version](https://img.shields.io/badge/version-3.0.0-blue)
+![Version](https://img.shields.io/badge/version-3.1.0-blue)
 ![Python](https://img.shields.io/badge/python-3.8%2B-green)
 ![Streamlit](https://img.shields.io/badge/streamlit-1.28%2B-red)
 ![License](https://img.shields.io/badge/license-MIT-orange)
+[![CI/CD](https://github.com/ABDOULAYEDIOP150/CRM/actions/workflows/ci.yml/badge.svg)](https://github.com/ABDOULAYEDIOP150/CRM/actions/workflows/ci.yml)
 
 ---
 
@@ -95,11 +96,13 @@ CRM/
 │── app_crm.py              # Application Streamlit (menu + routage)
 │── config.py               # Paramètres, couleurs, formatage FCFA
 │── demo_data.py            # Données de démonstration
+│── .github/workflows/ci.yml # CI/CD
+│── .streamlit/             # Thème + modèle de secrets
 │── db/
 │   ├── models.py           # Modèles SQLAlchemy + migration automatique de l'ancienne base
 │   ├── dettes.py           # Logique métier des dettes (échéancier, retards, relances)
 │   └── utils.py            # Statistiques et paramètres
-│── modules/                # Pages : dashboard, clients, produits, ventes, dettes, factures, historique, parametres
+│── modules/                # auth.py (connexion) + pages : dashboard, clients, produits, ventes, dettes, factures, historique, parametres
 │   └── pdf_utils.py        # Factures et reçus PDF
 │── tests/                  # Tests pytest (logique des dettes + chaque page)
 │── static/styles.css
@@ -181,6 +184,34 @@ streamlit run app_crm.py
 Une base créée avec une ancienne version est mise à jour automatiquement au lancement (aucune donnée perdue).
 
 Lancer les tests : `python -m pytest -q`
+
+---
+
+## ☁️ Mise en ligne (Streamlit Community Cloud)
+
+1. Aller sur [share.streamlit.io](https://share.streamlit.io) et se connecter avec GitHub
+2. **Create app** → dépôt `ABDOULAYEDIOP150/CRM`, branche `main`, fichier `app_crm.py`
+3. **Advanced settings → Secrets** : coller le contenu de `.streamlit/secrets.toml.example` en l'adaptant
+   (`APP_PASSWORD` pour protéger l'accès, `DEMO_MODE` pour une démo, `[database] url` pour garder les données)
+4. **Deploy** → l'app obtient un lien du type `https://crm-xxxx.streamlit.app`
+
+> ⚠️ Sans base PostgreSQL, Streamlit Cloud efface la base SQLite à chaque redémarrage.
+> Une base gratuite [Neon](https://neon.tech) ou [Supabase](https://supabase.com) suffit.
+
+## 🔁 CI/CD (GitHub Actions)
+
+À chaque push ou pull request (`.github/workflows/ci.yml`) :
+
+| Étape | Rôle |
+|---|---|
+| **lint** | `ruff check` + `ruff format --check` |
+| **tests** | `pytest` sur Python 3.11 et 3.12 (logique des dettes, chaque page, connexion) |
+| **smoke** | démarre réellement le serveur Streamlit et vérifie `/_stcore/health` |
+| **deploy-check** | après un push sur `main`, Streamlit Cloud redéploie tout seul ; ce job vérifie que l'URL en ligne répond (variable de dépôt `STREAMLIT_APP_URL`) |
+
+Dependabot propose chaque mois la mise à jour des dépendances.
+
+En local : `pip install -r requirements-dev.txt`, puis `ruff check . && python -m pytest -q`.
 
 ---
 

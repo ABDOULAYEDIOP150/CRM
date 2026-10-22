@@ -1,0 +1,89 @@
+# CI/CD du CRM
+# - CI : à chaque push / pull request -> qualité du code (ruff), tests (pytest) sur 2 versions de Python,
+#        puis test de démarrage réel du serveur Streamlit.
+# - CD : Streamlit Community Cloud redéploie automatiquement l'app à chaque push sur main.
+#        Le job "deploy-check" vérifie ensuite que l'app en ligne répond (si la variable
+#        STREAMLIT_APP_URL est renseignée dans Settings > Secrets and variables > Actions > Variables).
+name: CI/CD
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Qualité du code (ruff)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install ruff
+      - run: ruff check .
+      - run: ruff format --check .
+
+  tests:
+    name: Tests (Python ${{ matrix.python }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ["3.11", "3.12"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: ${{ matrix.python }}
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - run: pip install -r requirements-dev.txt
+      - run: python -m pytest -q
+
+  smoke:
+    name: Démarrage du serveur Streamlit
+    needs: [lint, tests]
+    runs-on: ubuntu-latest
+    env:
+      CRM_DB_URL: sqlite:////tmp/crm_ci.db
+      DEMO_MODE: "true"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: requirements*.txt
+      - run: pip install -r requirements.txt
+      - name: Lancer l'app et vérifier qu'elle répond
+        run: |
+          streamlit run app_crm.py --server.port 8501 > streamlit.log 2>&1 &
+          for i in $(seq 1 30); do
+            if curl -fs http://localhost:8501/_stcore/health; then echo " -> OK"; exit 0; fi
+            sleep 2
+          done
+          cat streamlit.log
+          exit 1
+
+  deploy-check:
+    name: Vérifier l'app en ligne (CD)
+    needs: smoke
+    if: github.event_name == 'push' && github.ref == 'refs/heads/main' && vars.STREAMLIT_APP_URL != ''
+    runs-on: ubuntu-latest
+    steps:
+      - name: Attendre le redéploiement Streamlit Cloud puis tester l'URL
+        run: |
+          sleep 90
+          for i in $(seq 1 10); do
+            code=$(curl -s -o /dev/null -w "%{http_code}" -L "${{ vars.STREAMLIT_APP_URL }}")
+            echo "Tentative $i : HTTP $code"
+            if [ "$code" = "200" ]; then exit 0; fi
+            sleep 30
+          done
+          exit 1

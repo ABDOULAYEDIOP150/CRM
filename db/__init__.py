@@ -5,7 +5,34 @@ Package de la couche base de données.
 - dettes.py : logique métier des dettes (échéancier, paiements, retards, relances)
 - utils.py  : statistiques et paramètres
 """
-from .models import (Base, Client, Produit, Vente, VenteProduit, HistoriqueVente, Dette, Echeance,
-                     Paiement, Parametre, init_db, get_session)
 
-__version__ = "3.0.0"
+from .models import (
+    Base,
+    Client,
+    Dette,
+    Echeance,
+    HistoriqueVente,
+    Paiement,
+    Parametre,
+    Produit,
+    Vente,
+    VenteProduit,
+    get_session,
+    init_db,
+)
+
+__all__ = [
+    "Base",
+    "Client",
+    "Dette",
+    "Echeance",
+    "HistoriqueVente",
+    "Paiement",
+    "Parametre",
+    "Produit",
+    "Vente",
+    "VenteProduit",
+    "get_session",
+    "init_db",
+]
+__version__ = "3.1.0"

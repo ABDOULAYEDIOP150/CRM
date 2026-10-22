@@ -6,8 +6,8 @@ import pytest
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from db.models import get_session, Client  # noqa: E402
 from db import dettes as D  # noqa: E402
+from db.models import Client, get_session  # noqa: E402
 
 
 @pytest.fixture
@@ -34,8 +34,15 @@ def test_echeancier_arrondi_et_dates():
 
 
 def test_creation_avec_acompte(session, client):
-    d = D.creer_dette(session, client.id, 50000, nb_versements=2, date_premiere=date(2026, 11, 1),
-                      acompte=10000, date_creation=datetime(2026, 10, 1))
+    d = D.creer_dette(
+        session,
+        client.id,
+        50000,
+        nb_versements=2,
+        date_premiere=date(2026, 11, 1),
+        acompte=10000,
+        date_creation=datetime(2026, 10, 1),
+    )
     assert d.total_paye == 10000 and d.reste == 40000
     assert sum(e.montant_prevu for e in d.echeances) == 40000
     s = D.situation_dette(d, date(2026, 10, 15))
@@ -43,8 +50,9 @@ def test_creation_avec_acompte(session, client):
 
 
 def test_retard_puis_paiement(session, client):
-    d = D.creer_dette(session, client.id, 30000, nb_versements=3, date_premiere=date(2026, 9, 1),
-                      date_creation=datetime(2026, 8, 1))
+    d = D.creer_dette(
+        session, client.id, 30000, nb_versements=3, date_premiere=date(2026, 9, 1), date_creation=datetime(2026, 8, 1)
+    )
     s = D.situation_dette(d, date(2026, 10, 5))
     assert s["statut"] == D.STATUT_RETARD
     assert s["montant_retard"] == 20000 and s["jours_retard"] == 34
@@ -63,8 +71,9 @@ def test_paiement_trop_eleve_refuse(session, client):
 
 
 def test_reechelonnement(session, client):
-    d = D.creer_dette(session, client.id, 40000, nb_versements=2, date_premiere=date(2026, 8, 1),
-                      date_creation=datetime(2026, 7, 1))
+    d = D.creer_dette(
+        session, client.id, 40000, nb_versements=2, date_premiere=date(2026, 8, 1), date_creation=datetime(2026, 7, 1)
+    )
     D.enregistrer_paiement(session, d, 10000)
     assert D.situation_dette(d, date(2026, 10, 1))["statut"] == D.STATUT_RETARD
     D.reechelonner(session, d, 3, date(2026, 11, 1), "Mensuelle")

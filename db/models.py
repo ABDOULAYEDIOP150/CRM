@@ -2,13 +2,44 @@ import os
 from datetime import datetime
 
 from sqlalchemy import (
-    create_engine, Column, Integer, String, Float, ForeignKey, DateTime, Date, Text, inspect, text,
+    Column,
+    Date,
+    DateTime,
+    Float,
+    ForeignKey,
+    Integer,
+    String,
+    Text,
+    create_engine,
+    inspect,
+    text,
 )
-from sqlalchemy.orm import declarative_base, sessionmaker, relationship
+from sqlalchemy.orm import declarative_base, relationship, sessionmaker
 
 Base = declarative_base()
 
-DB_URL = os.environ.get("CRM_DB_URL", "sqlite:///crm.db")
+
+def _url_par_defaut():
+    """Ordre de priorité : variable d'environnement CRM_DB_URL > secret Streamlit [database] url > SQLite local.
+
+    Sur Streamlit Cloud, le disque est effacé à chaque redémarrage : pour garder les données en production,
+    renseigner une base PostgreSQL (Neon, Supabase…) dans les secrets.
+    """
+    url = os.environ.get("CRM_DB_URL")
+    if not url:
+        try:
+            import streamlit as st
+
+            url = st.secrets.get("database", {}).get("url")
+        except Exception:  # pas de secrets.toml : cas normal en local
+            url = None
+    url = url or "sqlite:///crm.db"
+    if url.startswith("postgres://"):  # format donné par certains hébergeurs
+        url = "postgresql://" + url[len("postgres://") :]
+    return url
+
+
+DB_URL = _url_par_defaut()
 
 
 class Client(Base):
@@ -18,7 +49,7 @@ class Client(Base):
     telephone = Column(String)
     email = Column(String)
     adresse = Column(String, default="")
-    plafond_credit = Column(Float, default=0)        # 0 = pas de plafond
+    plafond_credit = Column(Float, default=0)  # 0 = pas de plafond
     notes = Column(Text, default="")
     date_creation = Column(DateTime, default=datetime.now)
     ventes = relationship("Vente", back_populates="client")
@@ -29,8 +60,8 @@ class Produit(Base):
     __tablename__ = "produits"
     id = Column(Integer, primary_key=True)
     nom = Column(String, unique=True)
-    prix = Column(Float)                              # prix de vente
-    prix_achat = Column(Float, default=0)             # pour calculer la marge
+    prix = Column(Float)  # prix de vente
+    prix_achat = Column(Float, default=0)  # pour calculer la marge
     stock = Column(Integer)
     ventes_assoc = relationship("VenteProduit", back_populates="produit")
 
@@ -82,26 +113,29 @@ class HistoriqueVente(Base):
 
 # ========== NOUVEAU : gestion des dettes ==========
 
+
 class Dette(Base):
     """Une dette = un montant dû par un client (vente à crédit ou dette saisie manuellement)."""
+
     __tablename__ = "dettes"
     id = Column(Integer, primary_key=True)
     client_id = Column(Integer, ForeignKey("clients.id"), nullable=False)
     vente_id = Column(Integer, ForeignKey("ventes.id"), nullable=True)
-    montant = Column(Float, nullable=False)           # montant total dû au départ
-    acompte = Column(Float, default=0)                # versé le jour de la création
+    montant = Column(Float, nullable=False)  # montant total dû au départ
+    acompte = Column(Float, default=0)  # versé le jour de la création
     # Montant déjà réglé quand l'échéancier actuel a été créé (acompte, ou paiements avant un rééchelonnement)
     regle_avant_echeancier = Column(Float, default=0)
     frequence = Column(String, default="Mensuelle")
     description = Column(String, default="")
-    statut = Column(String, default="en_cours")       # en_cours | soldee | annulee
+    statut = Column(String, default="en_cours")  # en_cours | soldee | annulee
     date_creation = Column(DateTime, default=datetime.now)
     date_solde = Column(DateTime, nullable=True)
 
     client = relationship("Client", back_populates="dettes")
     vente = relationship("Vente", back_populates="dette")
-    echeances = relationship("Echeance", back_populates="dette", cascade="all, delete-orphan",
-                             order_by="Echeance.numero")
+    echeances = relationship(
+        "Echeance", back_populates="dette", cascade="all, delete-orphan", order_by="Echeance.numero"
+    )
     paiements = relationship("Paiement", back_populates="dette", order_by="Paiement.date")
 
     @property
@@ -119,6 +153,7 @@ class Dette(Base):
 
 class Echeance(Base):
     """Une échéance prévue du plan de remboursement."""
+
     __tablename__ = "echeances"
     id = Column(Integer, primary_key=True)
     dette_id = Column(Integer, ForeignKey("dettes.id"), nullable=False)
@@ -130,6 +165,7 @@ class Echeance(Base):
 
 class Paiement(Base):
     """Tout encaissement : paiement comptant d'une vente, acompte ou remboursement de dette."""
+
     __tablename__ = "paiements"
     id = Column(Integer, primary_key=True)
     client_id = Column(Integer, ForeignKey("clients.id"))
@@ -171,13 +207,13 @@ def _migrer(engine):
                 if col.default is not None and getattr(col.default, "is_scalar", False):
                     val = col.default.arg
                     defaut = f" DEFAULT '{val}'" if isinstance(val, str) else f" DEFAULT {val}"
-                conn.execute(text(f'ALTER TABLE {table.name} ADD COLUMN {col.name} {type_sql}{defaut}'))
+                conn.execute(text(f"ALTER TABLE {table.name} ADD COLUMN {col.name} {type_sql}{defaut}"))
 
 
 def init_db(url=None):
     url = url or DB_URL
     if url not in _ENGINES:
-        engine = create_engine(url, echo=False)
+        engine = create_engine(url, echo=False, pool_pre_ping=True)
         Base.metadata.create_all(engine)
         _migrer(engine)
         _ENGINES[url] = engine
