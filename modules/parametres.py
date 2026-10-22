@@ -5,10 +5,9 @@ from db.utils import get_params, set_params
 
 
 def show_parametres():
-    st.markdown("<h2 style='color: #1e3a8a;'>⚙️ Paramètres de la boutique</h2>", unsafe_allow_html=True)
-    st.caption(
-        "Ces informations apparaissent sur les factures, les reçus et les messages de relance. "
-        "Chaque boutique qui utilise l'application peut les adapter."
+    config.entete(
+        "Paramètres",
+        "Ces informations apparaissent sur les factures, reçus, reconnaissances de dette et messages de relance.",
     )
     p = get_params()
     with st.form("parametres"):
@@ -31,7 +30,7 @@ def show_parametres():
             height=110,
             help="Variables : {client} {reste} {echeance} {boutique} {telephone}",
         )
-        if st.form_submit_button("💾 Enregistrer", use_container_width=True):
+        if st.form_submit_button("💾 Enregistrer", type="primary", use_container_width=True):
             set_params(
                 {
                     "boutique_nom": nom,
@@ -45,7 +44,7 @@ def show_parametres():
                     "message_relance": msg,
                 }
             )
-            st.session_state["flash"] = "✅ Paramètres enregistrés."
+            config.flash("Paramètres enregistrés.")
             st.rerun()
     if st.button("Rétablir le message de relance par défaut"):
         set_params({"message_relance": config.PARAMETRES_DEFAUT["message_relance"]})

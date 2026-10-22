@@ -1,4 +1,5 @@
-from datetime import datetime
+"""CRM Pro — point d'entrée Streamlit : démarrage, connexion, menu latéral et routage des pages."""
+
 from pathlib import Path
 
 import streamlit as st
@@ -7,14 +8,14 @@ import config
 from db import dettes as D
 from db.models import get_session, init_db
 from db.utils import get_params
-from modules import auth, clients, dashboard, dettes, factures, historique, parametres, produits, ventes
+from modules import auth, base_donnees, clients, dashboard, dettes, parametres, produits, ventes, ventes_documents
 
 config.setup_page()
 
 
 @st.cache_resource
 def demarrage():
-    """Exécuté une seule fois par serveur : création/migration de la base, données de démo si DEMO_MODE."""
+    """Une seule fois par serveur : création / migration de la base, données de démo si DEMO_MODE."""
     init_db()
     if str(auth.secret("DEMO_MODE", "false")).lower() in ("1", "true", "oui", "yes"):
         import demo_data
@@ -24,79 +25,72 @@ def demarrage():
 
 
 demarrage()
+st.markdown(
+    f"<style>{(Path(__file__).parent / 'static' / 'styles.css').read_text('utf-8')}</style>", unsafe_allow_html=True
+)
+
 if not auth.verifier_acces():
     st.stop()
 
 params = get_params()
 config.DEVISE = params["devise"]
 
-if "menu_choice" not in st.session_state:
-    st.session_state.menu_choice = "Dashboard"
+# Pages : (clé, icône, libellé, fonction)
+MENU = [
+    (None, [("Accueil", "🏠", "Tableau de bord", dashboard.show_dashboard)]),
+    (
+        "Vendre",
+        [
+            ("Ventes", "🛒", "Nouvelle vente", ventes.show_ventes),
+            ("Dettes", "💳", "Dettes clients", dettes.show_dettes),
+        ],
+    ),
+    (
+        "Gérer",
+        [
+            ("Clients", "👥", "Clients", clients.show_clients),
+            ("Produits", "📦", "Produits & stock", produits.show_produits),
+            ("Documents", "📄", "Ventes & documents", ventes_documents.show_ventes_documents),
+        ],
+    ),
+    (
+        "Réglages",
+        [
+            ("Paramètres", "⚙️", "Paramètres", parametres.show_parametres),
+            ("Base", "🗄️", "Base de données", base_donnees.show_base),
+        ],
+    ),
+]
+PAGES = {cle: fn for _, items in MENU for cle, _, _, fn in items}
 
-css = Path(__file__).parent / "static" / "styles.css"
-st.markdown(f"<style>{css.read_text(encoding='utf-8')}</style>", unsafe_allow_html=True)
+page = st.session_state.get("page", "Accueil")
+if page not in PAGES:
+    page = "Accueil"
+st.session_state["page"] = page
 
-# Nombre de dettes en retard -> badge dans le menu
 with get_session() as s:
     nb_retards = len(D.resume_creances(s, jours_alerte=int(params["jours_alerte_echeance"]))["retards"])
 
-col_menu, col_content = st.columns([1, 7])
-
-with col_menu:
+with st.sidebar:
     st.markdown(
-        f"<div style='padding:1rem 0;'><h3 style='color:#1e3a8a;margin-bottom:0.2rem;'>CRM Pro</h3>"
-        f"<small style='color:#64748b'>{params['boutique_nom']}</small></div>",
-        unsafe_allow_html=True,
+        f"<p class='crm-logo'>💼 CRM Pro</p><p class='crm-shop'>{params['boutique_nom']}</p>", unsafe_allow_html=True
     )
-    menu_items = [
-        ("📊", "Dashboard"),
-        ("👥", "Clients"),
-        ("📦", "Produits"),
-        ("🛒", "Ventes"),
-        ("💳", "Dettes"),
-        ("📄", "Factures"),
-        ("📈", "Historique"),
-        ("⚙️", "Paramètres"),
-    ]
-    for icon, label in menu_items:
-        badge = f" 🔴{nb_retards}" if label == "Dettes" and nb_retards else ""
-        if st.session_state.menu_choice == label:
-            st.markdown(
-                f"<div style='background-color:#1e3a8a;color:white;padding:10px 14px;border-radius:10px;"
-                f"margin:4px 0;font-weight:500;'>{icon} {label}{badge}</div>",
-                unsafe_allow_html=True,
-            )
-        elif st.button(f"{icon} {label}{badge}", key=f"menu_{label}", use_container_width=True):
-            st.session_state.menu_choice = label
-            st.rerun()
+    for section, items in MENU:
+        if section:
+            st.markdown(f"<p class='crm-menu-title'>{section}</p>", unsafe_allow_html=True)
+        for cle, icone, libelle, _ in items:
+            texte = f"{icone}  {libelle}"
+            if cle == "Dettes" and nb_retards:
+                texte += f"  · 🔴 {nb_retards}"
+            if st.button(
+                texte, key=f"menu_{cle}", use_container_width=True, type="primary" if cle == page else "secondary"
+            ):
+                st.session_state["page"] = cle
+                st.rerun()
+    st.divider()
     auth.bouton_deconnexion()
 
-with col_content:
-    st.markdown(
-        f"""
-        <div style='margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:1px solid #e2e8f0;
-                    display:flex;align-items:center;justify-content:space-between;'>
-            <h1 style='font-size:1.5rem;font-weight:600;color:#0f172a;margin:0;'>
-                <span style='color:#1e3a8a;'>CRM Pro</span>
-                <span style='color:#64748b;font-size:1rem;margin-left:8px;'>/ {st.session_state.menu_choice}</span>
-            </h1>
-            <span style='color:#64748b;font-size:0.9rem;'>{datetime.now().strftime("%d/%m/%Y")}</span>
-        </div>""",
-        unsafe_allow_html=True,
-    )
+if "flash" in st.session_state:
+    st.toast(st.session_state.pop("flash"), icon="✅")
 
-    # Message de confirmation après une action (survit au st.rerun)
-    if "flash" in st.session_state:
-        st.success(st.session_state.pop("flash"))
-
-    pages = {
-        "Dashboard": dashboard.show_dashboard,
-        "Clients": clients.show_clients,
-        "Produits": produits.show_produits,
-        "Ventes": ventes.show_ventes,
-        "Dettes": dettes.show_dettes,
-        "Factures": factures.show_factures,
-        "Historique": historique.show_historique,
-        "Paramètres": parametres.show_parametres,
-    }
-    pages[st.session_state.menu_choice]()
+PAGES[page]()

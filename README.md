@@ -1,6 +1,6 @@
 # 🚀 CRM PRO - Application de Gestion Commerciale & Données Clients
 
-![Version](https://img.shields.io/badge/version-3.1.0-blue)
+![Version](https://img.shields.io/badge/version-4.0.0-blue)
 ![Python](https://img.shields.io/badge/python-3.8%2B-green)
 ![Streamlit](https://img.shields.io/badge/streamlit-1.28%2B-red)
 ![License](https://img.shields.io/badge/license-MIT-orange)
@@ -56,36 +56,36 @@ Dans de nombreuses organisations, les données clients sont :
 
 ## 🧠 Fonctionnalités principales
 
-### 💳 Gestion des dettes (nouveau en v3)
+### 🛒 Caisse (nouvelle vente) — en 4 étapes
+1. Cliquer sur les produits à vendre (catalogue avec prix et stock)
+2. Choisir le client (ou « Client de passage », ou en créer un avec ➕)
+3. **Payé comptant** ou **À crédit (dette)** : le choix est visible dès l'ouverture
+   - comptant : moyen de paiement (Espèces, Wave, Orange Money…) et monnaie à rendre
+   - dette : avance versée aujourd'hui, nombre de paiements, fréquence, date du 1er paiement, aperçu de l'échéancier
+4. Valider → écran de confirmation avec les **documents à imprimer**
 
-Pensé pour les boutiques au Sénégal, où la vente « à crédit » est courante :
+### 💳 Dettes clients
+* Qui doit combien, jusqu'à quand : 🟢 À jour · 🔴 En retard (nombre de jours) · ✅ Soldée
+* Clic sur une dette → **Encaisser un versement**, reçu immédiat, relance **WhatsApp**
+* Dette sans vente (ancienne dette du cahier, argent prêté…), plafond de crédit par client
+* Donner plus de temps (rééchelonnement), annulation
 
-* **Vente à crédit** directement depuis la caisse, avec **acompte** versé le jour même
-* **Échéancier** : nombre de versements + fréquence (hebdomadaire, toutes les 2 semaines, mensuelle)
-* **Remboursements partiels** (Espèces, Wave, Orange Money, Free Money…) avec **reçu PDF**
-* Statut automatique de chaque dette : 🟢 À jour · 🔴 En retard (avec nombre de jours) · ✅ Soldée
-* **Rééchelonnement** quand un client demande plus de temps, annulation en cas d'erreur
-* **Plafond de crédit** par client + alerte si le client a déjà une dette en retard
-* **Dettes manuelles** pour reprendre les anciennes dettes du cahier ou un prêt d'argent
-* **Relance en un clic** par WhatsApp ou SMS avec un message pré-rempli (modifiable)
+### 📄 Documents PDF (preuves écrites)
+* **Reconnaissance de dette** à faire signer : montant en chiffres et **en lettres**, avance versée, échéancier, signatures
+* **Reçu de versement** pour chaque avance ou remboursement (« déjà versé / reste à payer »)
+* **Facture** avec situation de paiement, **relevé de compte client**
 
-### 📊 Tableau de bord & alertes
+### 🏠 Tableau de bord · 👥 Clients · 📦 Produits
+* Chiffre d'affaires, argent encaissé, dettes à encaisser, retards ; liste « À faire aujourd'hui »
+* Fiche client : achats, dettes, versements, relevé ; produits modifiables directement dans le tableau
 
-* KPI par période : CA, **encaissé**, marge estimée, **dettes à recevoir**, **montant en retard**
-* 🔔 Alertes : dettes en retard, échéances dans les X prochains jours, stock faible
-* Graphiques : ventes vs encaissements, top débiteurs, top produits, moyens de paiement
+### 🗄️ Base de données
+* SQLite en local, **PostgreSQL** en ligne (Neon / Supabase) ; tables créées et mises à jour automatiquement
+* Page dédiée : type de base, nombre d'enregistrements, **export Excel complet** et sauvegarde du fichier
 
-### 👥 Clients · 📦 Produits · 🛒 Ventes · 📄 Factures
-
-* Création **et modification** des clients (adresse, plafond, notes) et des produits (prix d'achat, réapprovisionnement)
-* Panier modifiable, **remise**, vérification du stock au moment de valider
-* Factures PDF avec situation de paiement (payé / reste à payer / échéancier)
-* Historique filtrable par période, exports CSV
-* ⚙️ Paramètres de la boutique (nom, téléphone, NINEA, RCCM…) repris sur les factures et reçus
-* Montants en **FCFA**
-
-![Tableau de bord](docs/dashboard.png)
-![Dettes](docs/dettes.png)
+| Caisse | Dettes | Documents |
+|---|---|---|
+| ![Caisse](docs/caisse.png) | ![Dettes](docs/dettes.png) | ![Documents](docs/documents.png) |
 
 ---
 
@@ -101,9 +101,9 @@ CRM/
 │── db/
 │   ├── models.py           # Modèles SQLAlchemy + migration automatique de l'ancienne base
 │   ├── dettes.py           # Logique métier des dettes (échéancier, retards, relances)
+│   ├── lettres.py          # Montants en toutes lettres
 │   └── utils.py            # Statistiques et paramètres
-│── modules/                # auth.py (connexion) + pages : dashboard, clients, produits, ventes, dettes, factures, historique, parametres
-│   └── pdf_utils.py        # Factures et reçus PDF
+│── modules/                # pages (ventes, dettes, clients…), documents.py (PDF), auth.py : dashboard, clients, produits, ventes, dettes, factures, historique, parametres
 │── tests/                  # Tests pytest (logique des dettes + chaque page)
 │── static/styles.css
 ```

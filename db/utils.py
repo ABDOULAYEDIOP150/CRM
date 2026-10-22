@@ -102,3 +102,15 @@ def get_repartition_paiements(debut=None, fin=None):
             q = q.filter(Paiement.date.between(debut, fin))
         res = q.group_by(Paiement.mode).all()
     return pd.DataFrame(res, columns=["Mode", "Montant"])
+
+
+def client_de_passage(session):
+    """Client générique pour les ventes comptant sans fiche client (créé au premier usage)."""
+    from .models import Client
+
+    c = session.query(Client).filter_by(nom=config.CLIENT_PASSAGE).first()
+    if c is None:
+        c = Client(nom=config.CLIENT_PASSAGE, telephone="")
+        session.add(c)
+        session.flush()
+    return c

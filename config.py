@@ -1,17 +1,17 @@
-# config.py
+"""Paramètres généraux, formatage (FCFA) et petits composants d'interface réutilisés par toutes les pages."""
+
 from datetime import datetime, timedelta
+from html import escape
 
 import streamlit as st
 
-# ========== Paramètres généraux ==========
-APP_NAME = "CRM Professionnel"
+APP_NAME = "CRM Pro"
 APP_ICON = "💼"
-LAYOUT = "wide"
 
-# Valeurs par défaut (modifiables dans la page ⚙️ Paramètres, stockées en base)
-SEUIL_STOCK = 2  # alerte stock faible
-DEVISE = "FCFA"  # Franc CFA (XOF) — pas de centimes
-JOURS_ALERTE_ECHEANCE = 3  # alerte X jours avant une échéance
+# Valeurs par défaut (modifiables dans Paramètres, stockées en base)
+SEUIL_STOCK = 2
+DEVISE = "FCFA"
+JOURS_ALERTE_ECHEANCE = 3
 
 PARAMETRES_DEFAUT = {
     "boutique_nom": "Ma Boutique",
@@ -30,58 +30,32 @@ PARAMETRES_DEFAUT = {
     ),
 }
 
-# Moyens de paiement courants au Sénégal
 MODES_PAIEMENT = ["Espèces", "Wave", "Orange Money", "Free Money", "Carte bancaire", "Virement", "Chèque"]
 
-# Fréquences de remboursement d'une dette
 FREQUENCES = {
     "Hebdomadaire": {"jours": 7},
     "Toutes les 2 semaines": {"jours": 14},
     "Mensuelle": {"mois": 1},
 }
 
-# ========== Couleurs ==========
+CLIENT_PASSAGE = "Client de passage"
+
+# Couleurs
 PRIMARY_BLUE = "#1e3a8a"
 SECONDARY_BLUE = "#2563eb"
-LIGHT_BLUE = "#dbeafe"
-BACKGROUND_BLUE = "#f0f7ff"
-SUCCESS_GREEN = "#10b981"
-WARNING_ORANGE = "#f59e0b"
-DANGER_RED = "#ef4444"
-
-STYLES = f"""
-<style>
-.stApp {{ background-color: {BACKGROUND_BLUE}; }}
-h1, h2, h3 {{ color: {PRIMARY_BLUE} !important; }}
-.stButton > button {{
-    background-color: {SECONDARY_BLUE};
-    color: white;
-    border-radius: 8px;
-}}
-.stButton > button:hover {{ background-color: {PRIMARY_BLUE}; }}
-.positive {{ color: {SUCCESS_GREEN}; }}
-.negative {{ color: {DANGER_RED}; }}
-</style>
-"""
+SUCCESS_GREEN = "#059669"
+WARNING_ORANGE = "#d97706"
+DANGER_RED = "#dc2626"
+MUTED = "#64748b"
 
 
 def setup_page():
-    """Configure la page Streamlit avec les paramètres de base"""
-    st.set_page_config(
-        page_title=APP_NAME,
-        page_icon=APP_ICON,
-        layout=LAYOUT,
-        initial_sidebar_state="collapsed",
-    )
+    st.set_page_config(page_title=APP_NAME, page_icon=APP_ICON, layout="wide", initial_sidebar_state="expanded")
 
 
-def apply_styles():
-    st.markdown(STYLES, unsafe_allow_html=True)
-
-
-# ========== Formatage ==========
+# ---------------------------------------------------------------- Formatage
 def fmt_money(montant, devise=None):
-    """Formate un montant en FCFA : 12500 -> '12 500 FCFA' (pas de décimales)."""
+    """12500 -> '12 500 FCFA'."""
     devise = devise or DEVISE
     try:
         valeur = round(float(montant or 0))
@@ -95,38 +69,64 @@ def fmt_date(d):
 
 
 def get_date_range(periode):
-    """Retourne une date de début et fin selon la période"""
     maintenant = datetime.now()
+    minuit = maintenant.replace(hour=0, minute=0, second=0, microsecond=0)
     if periode == "Aujourd'hui":
-        debut = maintenant.replace(hour=0, minute=0, second=0, microsecond=0)
+        debut = minuit
     elif periode == "Cette semaine":
-        debut = (maintenant - timedelta(days=maintenant.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+        debut = minuit - timedelta(days=maintenant.weekday())
     elif periode == "Ce mois":
-        debut = maintenant.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+        debut = minuit.replace(day=1)
     elif periode == "Cette année":
-        debut = maintenant.replace(month=1, day=1, hour=0, minute=0, second=0, microsecond=0)
-    else:  # 30 derniers jours
-        debut = (maintenant - timedelta(days=30)).replace(hour=0, minute=0, second=0, microsecond=0)
+        debut = minuit.replace(month=1, day=1)
+    else:
+        debut = minuit - timedelta(days=30)
     return debut, maintenant
 
 
-def stat_card(titre, valeur, couleur=SECONDARY_BLUE, sous_titre=""):
-    """HTML d'une carte KPI."""
-    sub = f"<div style='color:#64748b;font-size:0.8rem;margin-top:4px;'>{sous_titre}</div>" if sous_titre else ""
-    return f"""
-        <div class="stat-card" style="border-left:4px solid {couleur};">
-            <div class="stat-title">{titre}</div>
-            <div class="stat-value" style="font-size:1.6rem;">{valeur}</div>{sub}
-        </div>
-    """
+# ---------------------------------------------------------------- Composants
+def entete(titre, sous_titre=""):
+    """Titre de page homogène."""
+    sous = f"<p class='crm-sub'>{escape(sous_titre)}</p>" if sous_titre else ""
+    st.markdown(f"<div class='crm-head'><h1>{escape(titre)}</h1>{sous}</div>", unsafe_allow_html=True)
+
+
+def kpi(titre, valeur, couleur=SECONDARY_BLUE, detail=""):
+    det = f"<div class='crm-kpi-det'>{escape(str(detail))}</div>" if detail else ""
+    return (
+        f"<div class='crm-kpi' style='--c:{couleur}'><div class='crm-kpi-t'>{escape(titre)}</div>"
+        f"<div class='crm-kpi-v'>{escape(str(valeur))}</div>{det}</div>"
+    )
+
+
+def kpis(liste):
+    """Affiche une rangée de cartes KPI : [(titre, valeur, couleur, détail), ...]."""
+    cols = st.columns(len(liste))
+    for col, item in zip(cols, liste, strict=True):
+        col.markdown(kpi(*item), unsafe_allow_html=True)
+
+
+def badge(texte, couleur):
+    return f"<span class='crm-badge' style='--c:{couleur}'>{escape(texte)}</span>"
 
 
 def choisir(label, objets, libelle, nouveau=None, **kwargs):
-    """selectbox sur des objets SQLAlchemy : le widget ne mémorise que les IDs (les objets d'une session
-    fermée ne doivent pas être réutilisés au rerun suivant). `nouveau` = libellé d'une option « aucun »."""
+    """selectbox sur des objets SQLAlchemy : le widget ne mémorise que les IDs."""
     par_id = {o.id: o for o in objets}
     ids = ([None] if nouveau else []) + list(par_id)
     choix = st.selectbox(label, ids, format_func=lambda i: nouveau if i is None else libelle(par_id[i]), **kwargs)
     if choix not in par_id and not nouveau and objets:
         return objets[0]
     return par_id.get(choix)
+
+
+def flash(message):
+    """Message de confirmation affiché après le prochain rerun."""
+    st.session_state["flash"] = message
+
+
+def aller_a(page, **etat):
+    """Change de page (menu latéral) en passant éventuellement des valeurs."""
+    st.session_state["page"] = page
+    st.session_state.update(etat)
+    st.rerun()

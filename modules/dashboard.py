@@ -1,108 +1,114 @@
+"""Tableau de bord : chiffres clés, alertes (dettes en retard, échéances, stock) et graphiques."""
+
+from html import escape
+
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
 import config
-from config import fmt_date, fmt_money, stat_card
+from config import fmt_date, fmt_money
 from db import dettes as D
 from db.models import Produit, get_session
 from db.utils import get_evolution_ca, get_params, get_repartition_paiements, get_stats_periode, get_top_produits
 
+PERIODES = ["Aujourd'hui", "Cette semaine", "Ce mois", "Cette année", "30 derniers jours"]
+
+
+def _layout(fig, h=290):
+    fig.update_layout(
+        margin=dict(l=8, r=8, t=8, b=8),
+        height=h,
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        legend=dict(orientation="h", y=1.12),
+    )
+    return fig
+
 
 def show_dashboard():
     params = get_params()
-    seuil_stock = int(params["seuil_stock"])
-    jours_alerte = int(params["jours_alerte_echeance"])
+    seuil = int(params["seuil_stock"])
+    jours = int(params["jours_alerte_echeance"])
+    config.entete("Tableau de bord", params["boutique_nom"])
 
-    periode = st.radio(
-        "Période",
-        ["Aujourd'hui", "Cette semaine", "Ce mois", "Cette année", "30 derniers jours"],
-        index=2,
-        horizontal=True,
-        label_visibility="collapsed",
-    )
+    a, b, c = st.columns([1.2, 1.2, 4])
+    if a.button("🛒 Nouvelle vente", type="primary", use_container_width=True):
+        config.aller_a("Ventes")
+    if b.button("💰 Encaisser une dette", use_container_width=True):
+        config.aller_a("Dettes")
+    periode = c.segmented_control("Période", PERIODES, default="Ce mois", label_visibility="collapsed") or "Ce mois"
     debut, fin = config.get_date_range(periode)
     stats = get_stats_periode(debut, fin)
 
     with get_session() as session:
-        r = D.resume_creances(session, jours_alerte=jours_alerte)
-        stock_faible = session.query(Produit).filter(Produit.stock <= seuil_stock).order_by(Produit.stock).all()
-        stock_faible = [(p.nom, p.stock) for p in stock_faible]
-
-        # ---------- KPI ----------
-        c = st.columns(5)
-        c[0].markdown(
-            stat_card("Chiffre d'affaires", fmt_money(stats["ca_total"]), sous_titre=f"{stats['nb_ventes']} vente(s)"),
-            unsafe_allow_html=True,
-        )
-        c[1].markdown(
-            stat_card("Encaissé", fmt_money(stats["encaisse"]), config.SUCCESS_GREEN, "argent réellement reçu"),
-            unsafe_allow_html=True,
-        )
-        c[2].markdown(
-            stat_card("Marge estimée", fmt_money(stats["marge"]), config.SECONDARY_BLUE, "si prix d'achat renseignés"),
-            unsafe_allow_html=True,
-        )
-        c[3].markdown(
-            stat_card(
-                "Dettes à recevoir", fmt_money(r["total_du"]), config.WARNING_ORANGE, f"{r['nb_debiteurs']} client(s)"
-            ),
-            unsafe_allow_html=True,
-        )
-        c[4].markdown(
-            stat_card(
-                "Dont en retard", fmt_money(r["montant_retard"]), config.DANGER_RED, f"{len(r['retards'])} dette(s)"
-            ),
-            unsafe_allow_html=True,
+        r = D.resume_creances(session, jours_alerte=jours)
+        faibles = [
+            (p.nom, p.stock) for p in session.query(Produit).filter(Produit.stock <= seuil).order_by(Produit.stock)
+        ]
+        config.kpis(
+            [
+                (
+                    "Chiffre d'affaires",
+                    fmt_money(stats["ca_total"]),
+                    config.SECONDARY_BLUE,
+                    f"{stats['nb_ventes']} vente(s)",
+                ),
+                ("Argent encaissé", fmt_money(stats["encaisse"]), config.SUCCESS_GREEN, "ventes comptant + versements"),
+                (
+                    "Dettes à encaisser",
+                    fmt_money(r["total_du"]),
+                    config.WARNING_ORANGE,
+                    f"{r['nb_debiteurs']} client(s)",
+                ),
+                ("Dont en retard", fmt_money(r["montant_retard"]), config.DANGER_RED, f"{len(r['retards'])} dette(s)"),
+            ]
         )
 
-        # ---------- Alertes ----------
-        nb_alertes = len(r["retards"]) + len(r["echeances_proches"]) + len(stock_faible)
-        st.markdown(f"### 🔔 Alertes ({nb_alertes})")
-        if nb_alertes == 0:
-            st.success("Aucune alerte : pas de retard, pas d'échéance proche, stock suffisant.")
-        a1, a2, a3 = st.columns(3)
-        with a1:
-            if r["retards"]:
-                st.markdown("**🔴 Dettes en retard**")
-                for d, s in r["retards"][:8]:
-                    _alerte(
-                        d,
-                        s,
-                        params,
-                        "#fee2e2",
-                        "#991b1b",
-                        f"{fmt_money(s['montant_retard'])} en retard depuis {s['jours_retard']} j",
-                    )
-        with a2:
-            if r["echeances_proches"]:
-                st.markdown(f"**🟠 Échéances dans les {jours_alerte} jours**")
-                for d, s in r["echeances_proches"][:8]:
-                    _alerte(
-                        d,
-                        s,
-                        params,
-                        "#fef3c7",
-                        "#92400e",
-                        f"{fmt_money(s['prochain_montant'])} le {fmt_date(s['prochaine_date'])}",
-                    )
-        with a3:
-            if stock_faible:
-                st.markdown("**📦 Stock faible**")
-                for nom, stock in stock_faible[:10]:
-                    st.markdown(
-                        f"<div style='background:#fef9c3;color:#854d0e;padding:6px 10px;border-radius:6px;"
-                        f"margin-bottom:4px'>{nom} — <b>{stock}</b> restant(s)</div>",
-                        unsafe_allow_html=True,
-                    )
-        if len(r["retards"]) > 8 or len(r["echeances_proches"]) > 8:
-            st.caption("Liste complète dans 💳 Dettes.")
+        st.markdown("#### 🔔 À faire aujourd'hui")
+        if not (r["retards"] or r["echeances_proches"] or faibles):
+            st.success("Rien à signaler : aucune dette en retard, aucune échéance proche, stock suffisant.")
+        k1, k2, k3 = st.columns(3)
+        with k1:
+            st.markdown(f"**🔴 Dettes en retard ({len(r['retards'])})**")
+            for d, s in r["retards"][:6]:
+                _alerte(
+                    d,
+                    s,
+                    params,
+                    config.DANGER_RED,
+                    f"{fmt_money(s['montant_retard'])} · {s['jours_retard']} j de retard",
+                )
+            if not r["retards"]:
+                st.caption("Aucune.")
+        with k2:
+            st.markdown(f"**🟠 À encaisser sous {jours} jours ({len(r['echeances_proches'])})**")
+            for d, s in r["echeances_proches"][:6]:
+                _alerte(
+                    d,
+                    s,
+                    params,
+                    config.WARNING_ORANGE,
+                    f"{fmt_money(s['prochain_montant'])} le {fmt_date(s['prochaine_date'])}",
+                )
+            if not r["echeances_proches"]:
+                st.caption("Aucune.")
+        with k3:
+            st.markdown(f"**📦 Stock faible ({len(faibles)})**")
+            for nom, stock in faibles[:6]:
+                st.markdown(
+                    f"<div class='crm-alert' style='--c:{config.WARNING_ORANGE}'>{escape(nom)} · "
+                    f"<b>{stock}</b> restant(s)</div>",
+                    unsafe_allow_html=True,
+                )
+            if not faibles:
+                st.caption("Aucun.")
 
-        # ---------- Graphiques ----------
+        st.markdown("#### 📈 Activité")
         g1, g2 = st.columns(2)
-        with g1:
-            st.markdown("**Ventes vs encaissements (30 jours)**")
+        with g1.container(border=True):
+            st.markdown("**Ventes et argent encaissé (30 jours)**")
             df = get_evolution_ca(30)
             fig = go.Figure()
             fig.add_bar(x=df["Date"], y=df["CA"], name="Ventes", marker_color=config.SECONDARY_BLUE)
@@ -110,47 +116,50 @@ def show_dashboard():
                 x=df["Date"],
                 y=df["Encaissé"],
                 name="Encaissé",
-                mode="lines+markers",
-                line=dict(color=config.SUCCESS_GREEN, width=2),
+                mode="lines",
+                line=dict(color=config.SUCCESS_GREEN, width=2.5),
             )
-            fig.update_layout(
-                margin=dict(l=10, r=10, t=10, b=10), height=300, legend=dict(orientation="h", y=1.1), yaxis_title="FCFA"
-            )
-            st.plotly_chart(fig, use_container_width=True)
-        with g2:
-            st.markdown("**Top débiteurs**")
+            st.plotly_chart(_layout(fig), use_container_width=True)
+        with g2.container(border=True):
+            st.markdown("**Qui doit le plus ?**")
             if r["top_debiteurs"]:
-                dft = pd.DataFrame([(c.nom, m) for c, m in r["top_debiteurs"][:8]], columns=["Client", "Reste dû"])
+                dft = pd.DataFrame([(c.nom, m) for c, m in r["top_debiteurs"][:7]], columns=["Client", "Doit"])
                 fig = px.bar(
-                    dft, x="Reste dû", y="Client", orientation="h", color_discrete_sequence=[config.WARNING_ORANGE]
+                    dft, x="Doit", y="Client", orientation="h", color_discrete_sequence=[config.WARNING_ORANGE]
                 )
-                fig.update_layout(margin=dict(l=10, r=10, t=10, b=10), height=300, yaxis=dict(autorange="reversed"))
-                st.plotly_chart(fig, use_container_width=True)
+                fig.update_yaxes(autorange="reversed", title=None)
+                st.plotly_chart(_layout(fig), use_container_width=True)
             else:
-                st.info("Aucune dette en cours 👍")
-
+                st.info("Personne ne vous doit d'argent 👍")
         g3, g4 = st.columns(2)
-        with g3:
-            st.markdown("**Top produits (période)**")
-            dfp = get_top_produits(5, debut, fin)
-            if not dfp.empty:
-                fig = px.bar(dfp, x="Produit", y="Quantite_vendue", color_discrete_sequence=[config.PRIMARY_BLUE])
-                fig.update_layout(margin=dict(l=10, r=10, t=10, b=10), height=280)
-                st.plotly_chart(fig, use_container_width=True)
-            else:
+        with g3.container(border=True):
+            st.markdown(f"**Produits les plus vendus ({periode.lower()})**")
+            dfp = get_top_produits(6, debut, fin)
+            if dfp.empty:
                 st.caption("Aucune vente sur la période.")
-        with g4:
-            st.markdown("**Encaissements par moyen de paiement (période)**")
-            dfm = get_repartition_paiements(debut, fin)
-            if not dfm.empty:
-                fig = px.pie(dfm, names="Mode", values="Montant", hole=0.5)
-                fig.update_layout(margin=dict(l=10, r=10, t=10, b=10), height=280)
-                st.plotly_chart(fig, use_container_width=True)
             else:
+                fig = px.bar(
+                    dfp,
+                    x="Quantite_vendue",
+                    y="Produit",
+                    orientation="h",
+                    color_discrete_sequence=[config.PRIMARY_BLUE],
+                    labels={"Quantite_vendue": "Quantité"},
+                )
+                fig.update_yaxes(autorange="reversed", title=None)
+                st.plotly_chart(_layout(fig), use_container_width=True)
+        with g4.container(border=True):
+            st.markdown(f"**Moyens de paiement ({periode.lower()})**")
+            dfm = get_repartition_paiements(debut, fin)
+            if dfm.empty:
                 st.caption("Aucun encaissement sur la période.")
+            else:
+                st.plotly_chart(
+                    _layout(px.pie(dfm, names="Mode", values="Montant", hole=0.55)), use_container_width=True
+                )
 
 
-def _alerte(dette, situation, params, fond, texte, detail):
+def _alerte(dette, situation, params, couleur, detail):
     msg = D.message_relance(
         params["message_relance"],
         dette.client,
@@ -163,7 +172,6 @@ def _alerte(dette, situation, params, fond, texte, detail):
     lien = D.lien_whatsapp(dette.client.telephone, msg)
     wa = f" · <a href='{lien}' target='_blank'>📲 Relancer</a>" if lien else ""
     st.markdown(
-        f"<div style='background:{fond};color:{texte};padding:6px 10px;border-radius:6px;margin-bottom:4px'>"
-        f"<b>{dette.client.nom}</b> — {detail}{wa}</div>",
+        f"<div class='crm-alert' style='--c:{couleur}'><b>{escape(dette.client.nom)}</b> · {detail}{wa}</div>",
         unsafe_allow_html=True,
     )

@@ -8,7 +8,7 @@ import pytest
 RACINE = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, RACINE)
 
-PAGES = ["Dashboard", "Clients", "Produits", "Ventes", "Dettes", "Factures", "Historique", "Paramètres"]
+PAGES = ["Accueil", "Ventes", "Dettes", "Clients", "Produits", "Documents", "Paramètres", "Base"]
 
 
 @pytest.fixture(scope="module", autouse=True)
@@ -29,31 +29,70 @@ def test_page(page):
     from streamlit.testing.v1 import AppTest
 
     at = AppTest.from_file(os.path.join(RACINE, "app_crm.py"), default_timeout=30)
-    at.session_state["menu_choice"] = page
+    at.session_state["page"] = page
     at.run()
     assert not at.exception, at.exception
 
 
-def test_vente_a_credit():
+def _app():
     from streamlit.testing.v1 import AppTest
 
-    from db.models import Dette, Produit, get_session
+    return AppTest.from_file(os.path.join(RACINE, "app_crm.py"), default_timeout=30)
+
+
+def test_option_dette_visible_des_l_ouverture():
+    """L'option « À crédit (dette) » doit être visible même avec un panier vide."""
+    at = _app()
+    at.session_state["page"] = "Ventes"
+    at.run()
+    assert not at.exception, at.exception
+    options = [o for bg in at.button_group for o in bg.options]
+    assert any("crédit" in str(o) for o in options), options
+
+
+def test_vente_a_credit_et_documents():
+    from db.models import Client, Dette, Produit, get_session
+    from modules.ventes import DETTE
 
     with get_session() as s:
         avant = s.query(Dette).count()
         pid = s.query(Produit).filter(Produit.stock > 3).first().id
-    at = AppTest.from_file(os.path.join(RACINE, "app_crm.py"), default_timeout=30)
-    at.session_state["menu_choice"] = "Ventes"
+        cid = s.query(Client).filter(Client.nom == "Moussa Fall").first().id
+    at = _app()
+    at.session_state["page"] = "Ventes"
     at.session_state["panier"] = {pid: 2}
+    at.session_state["vente_client"] = cid
+    at.session_state["reglement"] = DETTE
     at.run()
-    [r for r in at.radio if r.label == "Type de paiement"][0].set_value("À crédit (dette)").run()
-    [n for n in at.number_input if n.label == "Nombre de versements"][0].set_value(3).run()
-    [b for b in at.button if "Valider la vente" in b.label][0].click().run()
+    [n for n in at.number_input if n.label == "Avance versée aujourd'hui"][0].set_value(1000).run()
+    [n for n in at.number_input if n.label == "Payer en combien de fois ?"][0].set_value(3).run()
+    [b for b in at.button if "Valider la vente à crédit" in b.label][0].click().run()
     assert not at.exception, at.exception
     with get_session() as s:
         assert s.query(Dette).count() == avant + 1
         d = s.query(Dette).order_by(Dette.id.desc()).first()
-        assert len(d.echeances) == 3 and d.vente_id is not None
+        assert len(d.echeances) == 3 and d.vente_id is not None and d.total_paye == 1000
+    # écran de confirmation avec les documents
+    assert at.session_state["derniere_vente"] == d.vente_id
+    textes = " ".join(m.value for m in at.markdown)
+    assert "Vente enregistrée" in textes
+
+
+def test_documents_pdf():
+    from db.models import Dette, get_session
+    from db.utils import get_params
+    from modules import documents
+
+    p = get_params()
+    with get_session() as s:
+        d = s.query(Dette).filter(Dette.acompte > 0).first()
+        for pdf in [
+            documents.reconnaissance_dette(d, p),
+            documents.recu(d.paiements[0], p),
+            documents.releve_client(d.client, p),
+            documents.facture(d.vente, p),
+        ]:
+            assert pdf[:4] == b"%PDF" and len(pdf) > 1500
 
 
 def test_connexion_par_mot_de_passe(monkeypatch):

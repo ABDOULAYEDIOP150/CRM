@@ -94,3 +94,13 @@ def test_whatsapp():
     assert D.normaliser_telephone("77 123 45 67") == "221771234567"
     assert D.normaliser_telephone("+221 77 123 45 67") == "221771234567"
     assert D.lien_whatsapp("771234567", "Bonjour").startswith("https://wa.me/221771234567?text=")
+
+
+def test_montant_en_lettres():
+    from db.lettres import en_lettres
+
+    assert en_lettres(71) == "soixante et onze"
+    assert en_lettres(80) == "quatre-vingts"
+    assert en_lettres(80000) == "quatre-vingt mille"
+    assert en_lettres(17500) == "dix-sept mille cinq cents"
+    assert en_lettres(2500000) == "deux millions cinq cent mille"
