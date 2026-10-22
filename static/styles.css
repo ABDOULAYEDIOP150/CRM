@@ -21,7 +21,7 @@
     padding: .9rem 1rem; border-top: 3px solid var(--c); height: 100%;
 }
 .crm-kpi-t { color: var(--muted); font-size: .76rem; text-transform: uppercase; letter-spacing: .04em; font-weight: 600; }
-.crm-kpi-v { color: var(--ink); font-size: 1.45rem; font-weight: 700; margin-top: .2rem; white-space: nowrap; }
+.crm-kpi-v { color: var(--ink); font-size: clamp(1.05rem, 1.5vw, 1.45rem); font-weight: 700; margin-top: .2rem; overflow-wrap: anywhere; }
 .crm-kpi-det { color: var(--muted); font-size: .8rem; margin-top: .15rem; }
 
 /* Badges */

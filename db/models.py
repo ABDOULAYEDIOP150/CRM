@@ -188,6 +188,20 @@ class Paiement(Base):
     vente = relationship("Vente", back_populates="paiements")
 
 
+class MouvementStock(Base):
+    """Journal de chaque entrée / sortie de stock : on sait toujours pourquoi un stock a changé."""
+
+    __tablename__ = "mouvements_stock"
+    id = Column(Integer, primary_key=True)
+    produit_id = Column(Integer, ForeignKey("produits.id"), nullable=False)
+    date = Column(DateTime, default=datetime.now)
+    type = Column(String, nullable=False)  # Vente | Réception | Correction | Import | Création
+    quantite = Column(Integer, nullable=False)  # + entrée, - sortie
+    stock_apres = Column(Integer)
+    note = Column(String, default="")
+    produit = relationship("Produit")
+
+
 class Parametre(Base):
     __tablename__ = "parametres"
     cle = Column(String, primary_key=True)

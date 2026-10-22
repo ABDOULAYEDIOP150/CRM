@@ -22,6 +22,7 @@ PARAMETRES_DEFAUT = {
     "boutique_ninea": "",
     "boutique_rccm": "",
     "devise": DEVISE,
+    "police": "Inter",
     "seuil_stock": str(SEUIL_STOCK),
     "jours_alerte_echeance": str(JOURS_ALERTE_ECHEANCE),
     "jours_stock_dormant": str(JOURS_STOCK_DORMANT),
@@ -41,6 +42,32 @@ FREQUENCES = {
 }
 
 CLIENT_PASSAGE = "Client de passage"
+
+# Polices proposées (Google Fonts) : nom -> description
+POLICES = {
+    "Inter": "moderne et très lisible (recommandée)",
+    "Poppins": "arrondie et chaleureuse",
+    "Nunito": "douce et aérée",
+    "Montserrat": "élégante, style affiche",
+    "Roboto": "classique, style Android",
+    "Source Sans 3": "police d'origine de Streamlit",
+}
+POLICE = "Inter"
+
+
+def css_police(nom):
+    """CSS qui charge la police depuis Google Fonts et l'applique à l'interface (sans casser les icônes)."""
+    if nom not in POLICES:
+        nom = "Inter"
+    url = "https://fonts.googleapis.com/css2?family=" + nom.replace(" ", "+") + ":wght@400;500;600;700;800&display=swap"
+    cible = (
+        ".stApp, .stApp p, .stApp li, .stApp label, .stApp input, .stApp textarea, .stApp button, .stApp h1, "
+        ".stApp h2, .stApp h3, .stApp h4, .stApp h5, .stApp h6, .stApp td, .stApp th, .stApp small, "
+        ".stMarkdown, [data-baseweb='select'] div, [data-baseweb='popover'] li, [data-testid='stMetricValue'], "
+        ".crm-kpi, .crm-head, .crm-alert, .crm-total, .crm-prod, .crm-prix"
+    )
+    return f"<style>@import url('{url}'); {cible} {{ font-family: '{nom}', sans-serif !important; }}</style>"
+
 
 UNITES = ["pièce", "sac", "kg", "barre", "mètre", "rouleau", "litre", "seau", "boîte", "paquet", "carton", "lot"]
 CATEGORIES_DEFAUT = [

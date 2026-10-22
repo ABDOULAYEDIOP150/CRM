@@ -41,7 +41,7 @@ def _fig(fig, h=300):
         paper_bgcolor="rgba(0,0,0,0)",
         plot_bgcolor="rgba(0,0,0,0)",
         legend=dict(orientation="h", y=1.12),
-        font=dict(size=12),
+        font=dict(size=12, family=f"{config.POLICE}, sans-serif"),
     )
     return fig
 

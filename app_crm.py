@@ -46,6 +46,8 @@ if not auth.verifier_acces():
 
 params = get_params()
 config.DEVISE = params["devise"]
+config.POLICE = params.get("police", "Inter")
+st.markdown(config.css_police(config.POLICE), unsafe_allow_html=True)
 
 # Pages : (clé, icône, libellé, fonction)
 MENU = [

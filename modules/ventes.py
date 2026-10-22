@@ -8,6 +8,7 @@ import config
 from config import CLIENT_PASSAGE, fmt_date, fmt_money
 from db import dettes as D
 from db.models import Client, HistoriqueVente, Paiement, Produit, Vente, VenteProduit, get_session
+from db.stock import mouvement
 from db.utils import client_de_passage, get_params
 from modules import documents
 
@@ -270,7 +271,7 @@ def _valider(session, client, panier, remise, total, credit, acompte, nb, freque
         for pid, q in panier.items():
             p = session.get(Produit, pid)
             session.add(VenteProduit(vente_id=vente.id, produit_id=pid, quantite=q, prix_unit=p.prix))
-            p.stock -= q
+            mouvement(session, p, -q, "Vente", f"Facture F-{vente.id:05d} · {client.nom}")
             session.add(
                 HistoriqueVente(
                     vente_id=vente.id,

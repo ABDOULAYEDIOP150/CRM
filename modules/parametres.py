@@ -59,3 +59,22 @@ def show_parametres():
     if st.button("Rétablir le message de relance par défaut"):
         set_params({"message_relance": config.PARAMETRES_DEFAUT["message_relance"]})
         st.rerun()
+
+    # ---------- Apparence ----------
+    st.markdown("#### 🎨 Apparence : police d'écriture")
+    actuelle = p.get("police", "Inter")
+    noms = list(config.POLICES)
+    a, b = st.columns([2, 3], vertical_alignment="center")
+    choix = a.selectbox("Police", noms, index=noms.index(actuelle) if actuelle in noms else 0,
+                        format_func=lambda n: f"{n} — {config.POLICES[n]}")  # fmt: skip
+    url = "https://fonts.googleapis.com/css2?family=" + choix.replace(" ", "+") + ":wght@400;700&display=swap"
+    b.markdown(
+        f"<style>@import url('{url}');</style><div style=\"font-family:'{choix}',sans-serif;font-size:1.15rem;"
+        f'border:1px solid #e2e8f0;border-radius:10px;padding:.7rem 1rem;background:#fff">'
+        f"<b>Ciment CPJ 45 — 4 600 FCFA</b><br>Aperçu : Awa Ndiaye doit 15 000 FCFA, à payer le 24/10.</div>",
+        unsafe_allow_html=True,
+    )
+    if choix != actuelle and st.button(f"Appliquer la police {choix}", type="primary"):
+        set_params({"police": choix})
+        config.flash(f"Police {choix} appliquée.")
+        st.rerun()

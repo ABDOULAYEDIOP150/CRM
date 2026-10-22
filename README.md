@@ -1,6 +1,6 @@
 # 🚀 CRM PRO - Application de Gestion Commerciale & Données Clients
 
-![Version](https://img.shields.io/badge/version-5.0.0-blue)
+![Version](https://img.shields.io/badge/version-5.1.0-blue)
 ![Python](https://img.shields.io/badge/python-3.8%2B-green)
 ![Streamlit](https://img.shields.io/badge/streamlit-1.28%2B-red)
 ![License](https://img.shields.io/badge/license-MIT-orange)
@@ -89,6 +89,9 @@ Dans de nombreuses organisations, les données clients sont :
 ### 👥 Clients · 📦 Produits · ❓ Guide rapide
 * Fiche client : achats, dettes, versements, relevé
 * Produits avec catégorie, unité (sac, barre, kg…), seuil d'alerte ; **réception de marchandise** ; modification dans le tableau
+* **Import Excel / CSV** du catalogue (modèle fourni, colonnes reconnues automatiquement, aperçu avant import, mise à jour sans doublon) et export pour modifier dans Excel
+* **Journal des mouvements de stock** : chaque vente, réception, correction et import est tracé
+* **Police au choix** dans Paramètres (Inter, Poppins, Nunito, Montserrat, Roboto)
 * Guide rapide intégré pour former un vendeur en 10 minutes
 
 ### 🗄️ Base de données
