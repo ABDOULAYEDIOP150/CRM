@@ -18,14 +18,14 @@ COULEURS = {
     D.STATUT_SOLDEE: config.SUCCESS_GREEN,
     D.STATUT_ANNULEE: config.MUTED,
 }
-ICONES = {D.STATUT_RETARD: "🔴", D.STATUT_A_JOUR: "🟢", D.STATUT_SOLDEE: "✅", D.STATUT_ANNULEE: "⚪"}
+ICONES = {D.STATUT_RETARD: "", D.STATUT_A_JOUR: "", D.STATUT_SOLDEE: "", D.STATUT_ANNULEE: ""}
 VUES = ["À encaisser", "En retard", "Soldées", "Tous les versements"]
 
 
 def show_dettes():
     params = get_params()
     with get_session() as session:
-        config.entete("Dettes clients", "Qui vous doit de l'argent, combien, et jusqu'à quand.")
+        config.entete("Dettes clients", "Créances, échéances et encaissements")
         r = D.resume_creances(session, jours_alerte=int(params["jours_alerte_echeance"]))
         config.kpis(
             [
@@ -48,13 +48,13 @@ def show_dettes():
         st.write("")
         a, b, _ = st.columns([1.3, 1.3, 3])
         if a.button(
-            "➕ Nouvelle dette",
+            "Nouvelle dette",
             type="primary",
             width="stretch",
             help="Dette sans vente : ancienne dette du cahier, argent prêté…",
         ):
             _dialog_nouvelle_dette()
-        config.bouton_page(b, "🛒 Vente à crédit", "Ventes", width="stretch")
+        config.bouton_page(b, "Vente à crédit", "Ventes", width="stretch")
 
         vue = st.segmented_control("Vue", VUES, default=VUES[0], key="vue_dettes", label_visibility="collapsed")
         vue = vue or VUES[0]
@@ -84,11 +84,11 @@ def _liste(session, params, vue):
         if vue == "Soldées" and s["statut"] != D.STATUT_SOLDEE:
             continue
         lignes.append((d, s))
-    recherche = st.text_input("Rechercher", placeholder="🔎  Nom ou téléphone du client", label_visibility="collapsed")
+    recherche = st.text_input("Rechercher", placeholder="Nom ou téléphone du client", label_visibility="collapsed")
     if recherche:
         lignes = [(d, s) for d, s in lignes if recherche.lower() in f"{d.client.nom} {d.client.telephone}".lower()]
     if not lignes:
-        st.info("Aucune dette ici. 👍")
+        st.info("Aucune dette ici. ")
         return
     lignes.sort(
         key=lambda x: (x[1]["statut"] != D.STATUT_RETARD, -x[1]["jours_retard"], x[1]["prochaine_date"] or date.max)
@@ -110,7 +110,6 @@ def _liste(session, params, vue):
             for d, s in lignes
         ]
     )
-    st.caption("👆 Cliquez sur une ligne pour ouvrir la dette, encaisser un versement ou imprimer les documents.")
     event = st.dataframe(
         df,
         hide_index=True,
@@ -134,7 +133,7 @@ def _detail(session, dette, params):
     c = dette.client
     st.markdown(
         f"### {c.nom} &nbsp; {config.badge(s['statut'], COULEURS[s['statut']])}  \n"
-        f"<small>📞 {c.telephone or '—'} · {dette.description or ''} · dette D-{dette.id:05d} du "
+        f"<small>{c.telephone or '—'} · {dette.description or ''} · dette D-{dette.id:05d} du "
         f"{fmt_date(dette.date_creation)}</small>",
         unsafe_allow_html=True,
     )
@@ -165,17 +164,17 @@ def _detail(session, dette, params):
 
     actif = dette.statut == "en_cours" and dette.reste > 0
     b = st.columns(4)
-    if actif and b[0].button("💰 Encaisser un versement", type="primary", width="stretch"):
+    if actif and b[0].button("Encaisser un versement", type="primary", width="stretch"):
         _dialog_versement(dette.id)
     b[1].download_button(
-        "✍️ Reconnaissance de dette",
+        "Reconnaissance de dette",
         documents.reconnaissance_dette(dette, params),
         f"Reconnaissance_dette_D-{dette.id:05d}.pdf",
         "application/pdf",
         width="stretch",
     )
     b[2].download_button(
-        "📄 Relevé du client",
+        "Relevé du client",
         documents.releve_client(c, params),
         f"Releve_{c.nom}.pdf",
         "application/pdf",
@@ -193,11 +192,11 @@ def _detail(session, dette, params):
         )
         lien = D.lien_whatsapp(c.telephone, msg)
         if lien:
-            b[3].link_button("📲 Relancer (WhatsApp)", lien, width="stretch")
+            b[3].link_button("Relancer (WhatsApp)", lien, width="stretch")
 
     g, dr = st.columns([3, 2], gap="large")
     with g:
-        st.markdown("##### 📅 Échéancier")
+        st.markdown("##### Échéancier")
         ech = D.etat_echeances(dette)
         if ech:
             st.dataframe(
@@ -223,7 +222,7 @@ def _detail(session, dette, params):
         else:
             st.caption("Pas d'échéancier.")
     with dr:
-        st.markdown("##### 🧾 Versements reçus")
+        st.markdown("##### Versements reçus")
         if not dette.paiements:
             st.caption("Aucun versement pour l'instant.")
         for p in reversed(dette.paiements):
@@ -245,7 +244,7 @@ def _detail(session, dette, params):
     if actif:
         with st.expander("Autres actions : donner plus de temps, annuler"):
             with st.form(f"reech_{dette.id}"):
-                st.markdown("**🔁 Donner plus de temps** (recalcule l'échéancier sur ce qui reste à payer)")
+                st.markdown("**Donner plus de temps** (recalcule l'échéancier sur ce qui reste à payer)")
                 k1, k2, k3 = st.columns(3)
                 nb = k1.number_input("Nombre de paiements", 1, 36, 2)
                 freq = k2.selectbox("Tous les…", list(config.FREQUENCES), index=2)
@@ -255,7 +254,7 @@ def _detail(session, dette, params):
                     session.commit()
                     config.flash("Nouvel échéancier enregistré.")
                     st.rerun()
-            st.markdown("**🚫 Annuler la dette** (erreur de saisie). Les versements reçus restent enregistrés.")
+            st.markdown("**Annuler la dette** (erreur de saisie). Les versements reçus restent enregistrés.")
             if st.button("Annuler cette dette", key=f"annul_{dette.id}"):
                 D.annuler_dette(session, dette)
                 session.commit()
@@ -264,7 +263,7 @@ def _detail(session, dette, params):
 
 
 # ------------------------------------------------------------------ Dialogues
-@st.dialog("💰 Encaisser un versement")
+@st.dialog("Encaisser un versement")
 def _dialog_versement(dette_id):
     params = get_params()
     with get_session() as session:
@@ -274,7 +273,7 @@ def _dialog_versement(dette_id):
             p = session.get(Paiement, recu_id)
             st.success(f"Versement de {fmt_money(p.montant)} enregistré. Reste : {fmt_money(dette.reste)}")
             st.download_button(
-                "🧾 Télécharger le reçu",
+                "Télécharger le reçu",
                 documents.recu(p, params),
                 f"Recu_R-{p.id:05d}.pdf",
                 "application/pdf",
@@ -308,12 +307,9 @@ def _dialog_versement(dette_id):
                     st.error(str(e))
 
 
-@st.dialog("➕ Nouvelle dette (sans vente)", width="large")
+@st.dialog("Nouvelle dette (sans vente)", width="large")
 def _dialog_nouvelle_dette():
-    st.caption(
-        "Pour une ancienne dette (cahier), de l'argent prêté, un service… "
-        "Pour vendre des produits à crédit, utilisez **Nouvelle vente**."
-    )
+    st.caption("Ancienne dette, prêt ou service. Pour une vente à crédit, passez par Nouvelle vente.")
     with get_session() as session:
         clients = session.query(Client).filter(Client.nom != config.CLIENT_PASSAGE).order_by(Client.nom).all()
         with st.form("nouvelle_dette"):
@@ -399,5 +395,5 @@ def _versements(session, params):
         column_config={"Montant": st.column_config.NumberColumn(format="localized")},
     )
     st.download_button(
-        "⬇️ Exporter (CSV)", df.to_csv(index=False, sep=";").encode("utf-8-sig"), "versements.csv", "text/csv"
+        "Exporter (CSV)", df.to_csv(index=False, sep=";").encode("utf-8-sig"), "versements.csv", "text/csv"
     )

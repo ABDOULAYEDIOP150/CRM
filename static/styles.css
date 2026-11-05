@@ -176,3 +176,5 @@ header[data-testid="stHeader"] { background: transparent; }
 .legende i { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 999px; background: var(--c); }
 .legende span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .legende b { font-weight: 700; color: #0f172a; }
+
+.pastille.sigle { color: var(--c); font-weight: 800; font-size: .78rem; letter-spacing: .02em; }

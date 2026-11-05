@@ -7,7 +7,7 @@ from db.utils import get_params, set_params
 def show_parametres():
     config.entete(
         "Paramètres",
-        "Ces informations apparaissent sur les factures, reçus, reconnaissances de dette et messages de relance.",
+        "Coordonnées utilisées sur les factures, reçus et relances",
     )
     p = get_params()
     with st.form("parametres"):
@@ -39,7 +39,7 @@ def show_parametres():
             height=110,
             help="Variables : {client} {reste} {echeance} {boutique} {telephone}",
         )
-        if st.form_submit_button("💾 Enregistrer", type="primary", width="stretch"):
+        if st.form_submit_button("Enregistrer", type="primary", width="stretch"):
             set_params(
                 {
                     "boutique_nom": nom,
@@ -61,7 +61,7 @@ def show_parametres():
         st.rerun()
 
     # ---------- Apparence ----------
-    st.markdown("#### 🎨 Apparence : police d'écriture")
+    st.markdown("#### Apparence : police d'écriture")
     actuelle = p.get("police", "Inter")
     noms = list(config.POLICES)
     a, b = st.columns([2, 3], vertical_alignment="center")

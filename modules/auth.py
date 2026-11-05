@@ -24,9 +24,7 @@ def verifier_acces():
 
     _, centre, _ = st.columns([1, 1, 1])
     with centre:
-        st.markdown(
-            "<h2 style='text-align:center;color:#1e3a8a;margin-top:4rem'>🔐 CRM Pro</h2>", unsafe_allow_html=True
-        )
+        st.markdown("<h2 style='text-align:center;color:#1e3a8a;margin-top:4rem'>CRM Pro</h2>", unsafe_allow_html=True)
         with st.form("connexion"):
             saisi = st.text_input("Mot de passe", type="password")
             if st.form_submit_button("Se connecter", width="stretch"):
@@ -38,6 +36,6 @@ def verifier_acces():
 
 
 def bouton_deconnexion():
-    if secret("APP_PASSWORD") and st.button("🚪 Déconnexion", key="logout", width="stretch"):
+    if secret("APP_PASSWORD") and st.button("Déconnexion", key="logout", width="stretch"):
         st.session_state.clear()
         st.rerun()

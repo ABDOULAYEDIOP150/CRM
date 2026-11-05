@@ -12,8 +12,8 @@ from db.stock import ErreurStock, sortie_stock
 from db.utils import client_de_passage, get_params
 from modules import documents
 
-COMPTANT = "💵 Payé comptant"
-DETTE = "📝 À crédit (dette)"
+COMPTANT = "Payé comptant"
+DETTE = "À crédit (dette)"
 
 
 def _panier():
@@ -31,9 +31,7 @@ def show_ventes():
         if st.session_state.get("derniere_vente"):
             _confirmation(session, st.session_state["derniere_vente"])
             return
-        config.entete(
-            "Nouvelle vente", "① Ajoutez les produits  ·  ② Choisissez le client  ·  ③ Comptant ou dette  ·  ④ Validez"
-        )
+        config.entete("Nouvelle vente", "Produits, client, règlement")
         gauche, droite = st.columns([3, 2], gap="large")
         with gauche:
             _catalogue(session)
@@ -41,7 +39,7 @@ def show_ventes():
             _ticket(session)
 
 
-# ------------------------------------------------------------------ ① Catalogue
+# ------------------------------------------------------------------ Catalogue
 def _ajouter_depuis_recherche():
     """Appelé quand on choisit un produit dans la liste de suggestions : ajout au panier puis remise à zéro."""
     pid = st.session_state.get("recherche_produit")
@@ -55,19 +53,19 @@ def _ajouter_depuis_recherche():
             st.session_state[f"q_{pid}"] = panier[pid]
             st.session_state["dernier_ajout"] = f"{p.nom} ajouté au panier"
         elif p:
-            st.session_state["dernier_ajout"] = f"⚠️ Plus de stock pour {p.nom}"
+            st.session_state["dernier_ajout"] = f"Plus de stock pour {p.nom}"
     st.session_state["recherche_produit"] = None
 
 
 def _catalogue(session):
     panier = _panier()
-    st.markdown("##### ① Produits")
+    st.markdown("##### Produits")
     tous = session.query(Produit).order_by(Produit.nom).all()
     if not tous:
         st.info(
             "Aucun produit. Ajoutez ou importez vos produits dans la **Base produits**, puis faites une **Entrée de stock**."
         )
-        config.bouton_page(st, "📦 Ajouter des produits", "Catalogue")
+        config.bouton_page(st, "Ajouter des produits", "Catalogue")
         return
     par_id = {p.id: p for p in tous}
 
@@ -78,7 +76,7 @@ def _catalogue(session):
         index=None,
         key="recherche_produit",
         on_change=_ajouter_depuis_recherche,
-        placeholder="🔎  Tapez les premières lettres du produit (ex. « ci » → Ciment), puis Entrée",
+        placeholder="Rechercher un produit (nom ou code)",
         format_func=lambda i: (
             f"{par_id[i].nom}  —  {fmt_money(par_id[i].prix)}  ·  stock {par_id[i].stock} {par_id[i].unite or 'pièce'}"
         ),
@@ -86,7 +84,7 @@ def _catalogue(session):
     )
     if "dernier_ajout" in st.session_state:
         msg = st.session_state.pop("dernier_ajout")
-        (st.warning if msg.startswith("⚠️") else st.success)(msg, icon=None if msg.startswith("⚠️") else "✅")
+        (st.warning if msg.startswith("") else st.success)(msg, icon=None if msg.startswith("") else "")
 
     # …ou parcourir le catalogue par catégorie
     categories = sorted({p.categorie or "Divers" for p in tous})
@@ -107,17 +105,17 @@ def _catalogue(session):
                 f"<div class='crm-stock'>{etat}{f' · {dans_panier} au panier' if dans_panier else ''}</div>",
                 unsafe_allow_html=True,
             )
-            if st.button("➕ Ajouter", key=f"add_{p.id}", width="stretch", disabled=dispo <= 0):
+            if st.button("Ajouter", key=f"add_{p.id}", width="stretch", disabled=dispo <= 0):
                 panier[p.id] = dans_panier + 1
                 st.session_state[f"q_{p.id}"] = panier[p.id]
 
 
-# ------------------------------------------------------------------ ②③④ Ticket
+# ------------------------------------------------------------------ Ticket
 def _ticket(session):
     panier = _panier()
     with st.container(border=True):
-        # ② Client
-        st.markdown("##### ② Client")
+        # Client
+        st.markdown("##### Client")
         clients = session.query(Client).filter(Client.nom != CLIENT_PASSAGE).order_by(Client.nom).all()
         c1, c2 = st.columns([3, 1], vertical_alignment="bottom")
         with c1:
@@ -135,14 +133,14 @@ def _ticket(session):
         if client:
             encours = D.encours_client(session, client.id)
             if D.client_en_retard(session, client.id):
-                st.error(f"⚠️ {client.nom} a une dette **en retard** ({fmt_money(encours)} dû au total).")
+                st.error(f"{client.nom} a une dette **en retard** ({fmt_money(encours)} dû au total).")
             elif encours:
                 st.caption(f"Dette en cours : **{fmt_money(encours)}**")
 
         # Lignes du panier
-        st.markdown("##### 🧾 Panier")
+        st.markdown("##### Panier")
         if not panier:
-            st.info("Le panier est vide : cliquez sur **➕ Ajouter** à gauche.")
+            st.info("Le panier est vide : cliquez sur **Ajouter** à gauche.")
         sous_total = 0
         for pid in list(panier):
             p = session.get(Produit, pid)
@@ -172,8 +170,8 @@ def _ticket(session):
         total = max(sous_total - remise, 0)
         st.markdown(f"<div class='crm-total'><span>TOTAL</span><b>{fmt_money(total)}</b></div>", unsafe_allow_html=True)
 
-        # ③ Règlement — toujours visible
-        st.markdown("##### ③ Règlement")
+        # Règlement — toujours visible
+        st.markdown("##### Règlement")
         reglement = (
             st.segmented_control(
                 "Règlement", [COMPTANT, DETTE], default=COMPTANT, key="reglement", label_visibility="collapsed"
@@ -198,8 +196,8 @@ def _ticket(session):
                     )
         else:
             if client is None:
-                bloquant = "Pour une dette, choisissez le client (ou créez-le avec ➕)."
-                st.warning("👤 " + bloquant)
+                bloquant = "Pour une dette, choisissez le client (ou créez-le avec )."
+                st.warning(bloquant)
             x1, x2 = st.columns(2)
             acompte = x1.number_input(
                 "Avance versée aujourd'hui",
@@ -230,16 +228,16 @@ def _ticket(session):
                 if not st.checkbox("J'autorise quand même ce crédit"):
                     bloquant = "Plafond de crédit dépassé."
 
-        # ④ Validation
+        # Validation
         if not panier:
             bloquant = bloquant or "Ajoutez au moins un produit."
-        libelle = "✅ Valider la vente à crédit" if credit else "✅ Valider la vente"
+        libelle = "Valider la vente à crédit" if credit else "Valider la vente"
         if st.button(libelle, type="primary", width="stretch", disabled=bool(bloquant)):
             _valider(session, client, panier, remise, total, credit, acompte, nb, frequence, date1, mode)
 
 
 def _nouveau_client_rapide(session):
-    with st.popover("➕", help="Nouveau client", width="stretch"):
+    with st.popover("", icon=":material/person_add:", help="Nouveau client", width="stretch"):
         with st.form("client_rapide", clear_on_submit=True):
             nom = st.text_input("Nom complet")
             tel = st.text_input("Téléphone", placeholder="77 123 45 67")
@@ -320,7 +318,7 @@ def _confirmation(session, vente_id):
         st.rerun()
     params = get_params()
     d = vente.dette
-    config.entete("Vente enregistrée ✅", f"Facture F-{vente.id:05d} · {vente.client.nom} · {fmt_money(vente.total)}")
+    config.entete("Vente enregistrée", f"Facture F-{vente.id:05d}, {vente.client.nom}, {fmt_money(vente.total)}")
     if d:
         config.kpis(
             [
@@ -334,14 +332,14 @@ def _confirmation(session, vente_id):
                 ),
             ]
         )
-        st.info("📝 Faites signer la **reconnaissance de dette** au client et gardez un exemplaire.")
+        st.info("Faites signer la **reconnaissance de dette** au client et gardez un exemplaire.")
     else:
         st.success(f"Payé comptant ({vente.mode_paiement}) : {fmt_money(vente.total)}")
 
     st.markdown("##### Documents à imprimer / envoyer")
     cols = st.columns(3)
     cols[0].download_button(
-        "📄 Facture",
+        "Facture",
         documents.facture(vente, params),
         f"Facture_F-{vente.id:05d}.pdf",
         "application/pdf",
@@ -349,7 +347,7 @@ def _confirmation(session, vente_id):
     )
     if d:
         cols[1].download_button(
-            "✍️ Reconnaissance de dette",
+            "Reconnaissance de dette",
             documents.reconnaissance_dette(d, params),
             f"Reconnaissance_dette_D-{d.id:05d}.pdf",
             "application/pdf",
@@ -359,7 +357,7 @@ def _confirmation(session, vente_id):
         if d.paiements:
             p = d.paiements[0]
             cols[2].download_button(
-                "🧾 Reçu de l'avance",
+                "Reçu de l'avance",
                 documents.recu(p, params),
                 f"Recu_R-{p.id:05d}.pdf",
                 "application/pdf",
@@ -368,7 +366,7 @@ def _confirmation(session, vente_id):
     st.divider()
     b1, b2, _ = st.columns([1, 1, 2])
     b1.button(  # callback : un seul chargement
-        "🛒 Nouvelle vente",
+        "Nouvelle vente",
         type="primary",
         width="stretch",
         on_click=lambda: st.session_state.pop("derniere_vente", None),
@@ -376,7 +374,7 @@ def _confirmation(session, vente_id):
     if d:
         config.bouton_page(
             b2,
-            "💳 Voir la dette",
+            "Voir la dette",
             "Dettes",
             etat={"dette_ouverte": d.id, "derniere_vente": None},
             width="stretch",

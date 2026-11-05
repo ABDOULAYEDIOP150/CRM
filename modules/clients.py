@@ -14,13 +14,11 @@ from modules import documents
 
 def show_clients():
     with get_session() as session:
-        config.entete("Clients", "Vos clients, ce qu'ils ont acheté et ce qu'ils vous doivent.")
+        config.entete("Clients", "Achats et soldes par client")
         a, b = st.columns([1, 4], vertical_alignment="bottom")
-        if a.button("➕ Nouveau client", type="primary", width="stretch"):
+        if a.button("Nouveau client", type="primary", width="stretch"):
             _dialog_client(None)
-        recherche = b.text_input(
-            "Rechercher", placeholder="🔎  Nom, téléphone, quartier…", label_visibility="collapsed"
-        )
+        recherche = b.text_input("Rechercher", placeholder="Nom, téléphone, quartier…", label_visibility="collapsed")
 
         clients = (
             session.query(Client)
@@ -33,7 +31,7 @@ def show_clients():
             r = recherche.lower()
             clients = [c for c in clients if r in f"{c.nom} {c.telephone} {c.adresse or ''}".lower()]
         if not clients:
-            st.info("Aucun client. Cliquez sur **➕ Nouveau client**.")
+            st.info("Aucun client. Cliquez sur **Nouveau client**.")
             return
 
         lignes = []
@@ -49,11 +47,11 @@ def show_clients():
                     "Achats": len(c.ventes),
                     "Total acheté": sum(v.total for v in c.ventes),
                     "Doit": encours,
-                    "Situation": "🔴 En retard" if retard else ("🟠 Dette en cours" if encours else "🟢 À jour"),
+                    "Situation": "En retard" if retard else ("Dette en cours" if encours else "À jour"),
                 }
             )
         df = pd.DataFrame(lignes)
-        st.caption(f"{len(df)} client(s) · 👆 Cliquez sur un client pour ouvrir sa fiche.")
+        st.caption(f"{len(df)} client(s) · Cliquez sur un client pour ouvrir sa fiche.")
         event = st.dataframe(
             df,
             hide_index=True,
@@ -75,7 +73,7 @@ def _fiche(session, c):
     params = get_params()
     encours = D.encours_client(session, c.id)
     st.markdown(
-        f"### {c.nom}  \n<small>📞 {c.telephone or '—'} · {c.adresse or ''} · client depuis le "
+        f"### {c.nom}  \n<small>{c.telephone or '—'} · {c.adresse or ''} · client depuis le "
         f"{fmt_date(c.date_creation)}</small>",
         unsafe_allow_html=True,
     )
@@ -93,11 +91,11 @@ def _fiche(session, c):
     )
     st.write("")
     b = st.columns(4)
-    config.bouton_page(b[0], "🛒 Lui vendre", "Ventes", etat={"vente_client": c.id}, type="primary", width="stretch")
-    if b[1].button("✏️ Modifier", width="stretch"):
+    config.bouton_page(b[0], "Lui vendre", "Ventes", etat={"vente_client": c.id}, type="primary", width="stretch")
+    if b[1].button("Modifier", width="stretch"):
         _dialog_client(c.id)
     b[2].download_button(
-        "📄 Relevé de compte",
+        "Relevé de compte",
         documents.releve_client(c, params),
         f"Releve_{c.nom}.pdf",
         "application/pdf",
@@ -106,7 +104,7 @@ def _fiche(session, c):
     if encours:
         actives = [d for d in c.dettes if d.statut == "en_cours"]
         ouverte = actives[0].id if actives else None
-        config.bouton_page(b[3], "💳 Voir ses dettes", "Dettes", etat={"dette_ouverte": ouverte}, width="stretch")
+        config.bouton_page(b[3], "Voir ses dettes", "Dettes", etat={"dette_ouverte": ouverte}, width="stretch")
 
     t1, t2, t3 = st.tabs(["Achats", "Dettes", "Versements"])
     with t1:
@@ -179,7 +177,7 @@ def _fiche(session, c):
         else:
             st.caption("Aucun versement sur dette.")
     if c.notes:
-        st.caption(f"📝 {c.notes}")
+        st.caption(f"{c.notes}")
 
 
 @st.dialog("Client")
@@ -217,7 +215,7 @@ def _dialog_client(client_id):
                 config.flash(f"Client {c.nom} enregistré.")
                 st.rerun()
         if c is not None and not c.ventes and not c.dettes:
-            if st.button("🗑️ Supprimer ce client"):
+            if st.button("Supprimer ce client"):
                 session.delete(c)
                 session.commit()
                 st.session_state.pop("client_ouvert", None)

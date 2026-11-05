@@ -1,4 +1,4 @@
-"""📥 Entrée de stock : je choisis un produit du catalogue (par son code ou son nom), je dis combien j'en ai
+"""Entrée de stock : je choisis un produit du catalogue (par son code ou son nom), je dis combien j'en ai
 acheté, à quel prix, et à combien je vais le revendre. L'application calcule la marge et met le stock à jour."""
 
 from datetime import date, datetime, time, timedelta
@@ -25,12 +25,12 @@ def show_entrees():
     with get_session() as session:
         config.entete(
             "Entrée de stock",
-            "Choisissez le produit, indiquez la quantité achetée, le prix d'achat et le prix de vente.",
+            "Enregistrer un achat de marchandise",
         )
         produits = session.query(Produit).order_by(Produit.nom).all()
         if not produits:
             st.info("La base produits est vide : ajoutez ou importez d'abord vos produits.")
-            if st.button("➕ Nouveau produit", type="primary"):
+            if st.button("Nouveau produit", type="primary"):
                 dialog_produit()
             return
         gauche, droite = st.columns([3, 2], gap="large")
@@ -48,21 +48,21 @@ def _formulaire(session, produits):
     if cible in par_id:
         st.session_state["entree_produit"] = cible
     with st.container(border=True):
-        st.markdown("##### ① Produit")
+        st.markdown("##### Produit")
         a, b = st.columns([4, 1], vertical_alignment="bottom")
         pid = a.selectbox(
             "Produit",
             list(par_id),
             index=None,
             key="entree_produit",
-            placeholder="🔎  Tapez le code ou le nom (ex. « SAB » ou « sable »)",
+            placeholder="Rechercher un produit (nom ou code)",
             format_func=lambda i: (
                 f"{par_id[i].nom}  ·  {par_id[i].reference}  —  achat {fmt_money(par_id[i].prix_achat)}"
                 f" · vente {fmt_money(par_id[i].prix)} · stock {par_id[i].stock or 0} {par_id[i].unite or 'pièce'}"
             ),
             label_visibility="collapsed",
         )
-        if b.button("➕", width="stretch", help="Nouveau produit (absent de la base)"):
+        if b.button("", icon=":material/add:", width="stretch", help="Nouveau produit (absent de la base)"):
             dialog_produit()
         st.session_state["entree_fiche"] = pid
         if pid is None:
@@ -71,7 +71,7 @@ def _formulaire(session, produits):
         p = par_id[pid]
         unite = p.unite or "pièce"
 
-        st.markdown("##### ② Achat")
+        st.markdown("##### Achat")
         c1, c2 = st.columns(2)
         quantite = c1.number_input(f"Quantité achetée ({unite})", min_value=1, step=1, value=1, key="entree_qte")
         mode_prix = (
@@ -104,7 +104,7 @@ def _formulaire(session, produits):
         )
         jour = f2.date_input("Date de l'achat", value=date.today(), max_value=date.today(), format="DD/MM/YYYY")
 
-        st.markdown("##### ③ Prix de vente")
+        st.markdown("##### Prix de vente")
         taux = float(get_param("marge_defaut") or 20)
         propose = int(round(pa * (1 + taux / 100), -1)) if pa else int(p.prix or 0)
         defaut = int(p.prix) if p.prix and p.prix >= pa else propose
@@ -113,19 +113,19 @@ def _formulaire(session, produits):
             f"Je vends un(e) {unite} à (FCFA)", min_value=0, step=50, value=defaut, key=f"entree_pv_{pid}_{pa}"
         )
         v2.caption(
-            f"Prix actuel : {fmt_money(p.prix) if p.prix else '—'} · avec {taux:.0f} % de marge : {fmt_money(propose)}"
+            f"Prix actuel : {fmt_money(p.prix) if p.prix else 'aucun'}. Avec {taux:.0f} % de marge : {fmt_money(propose)}."
         )
         gain, taux_reel = marge(pa, pv)
         if pv and pv < pa:
-            st.error(f"⚠️ Vous vendriez à perte : {fmt_money(-gain)} perdus par {unite}.")
+            st.error(f"Vous vendriez à perte : {fmt_money(-gain)} perdus par {unite}.")
         elif pv:
             st.success(
-                f"Bénéfice : **{fmt_money(gain)} par {unite}** ({taux_reel:.0%}) · "
+                f"Bénéfice : **{fmt_money(gain)} par {unite}** ({taux_reel:.0%}), "
                 f"**{fmt_money(gain * quantite)}** si tout l'arrivage est vendu."
             )
 
         recap = f"{quantite} {unite}(s) de {p.nom} à {fmt_money(pa)} = {fmt_money(pa * quantite)}"
-        if st.button(f"✅ Enregistrer l'entrée : {recap}", type="primary", width="stretch", disabled=not pv):
+        if st.button(f"Enregistrer l'entrée : {recap}", type="primary", width="stretch", disabled=not pv):
             try:
                 quand = datetime.combine(jour, datetime.now().time()) if jour != date.today() else None
                 entree_stock(session, p, quantite, pa, pv, fournisseur or "", date=quand)
@@ -143,22 +143,15 @@ def _formulaire(session, produits):
 def _fiche_produit(session):
     pid = st.session_state.get("entree_fiche")
     p = session.get(Produit, pid) if pid else None
+    if p is None:
+        return
     with st.container(border=True):
-        if p is None:
-            st.markdown("##### Comment ça marche ?")
-            st.markdown(
-                "1. La **base produits** contient vos produits avec un code (ex. SAB-001 = Sable) et leurs prix.\n"
-                "2. À chaque achat, faites une **entrée de stock** : quantité, prix d'achat, prix de vente.\n"
-                "3. Chaque arrivage garde **son propre prix d'achat** : si le prix du fournisseur change, "
-                "le bénéfice reste exact (les plus anciens sont vendus en premier)."
-            )
-            return
         unite = p.unite or "pièce"
         st.markdown(f"##### {p.reference} · {p.nom}")
         st.markdown(
-            f"📦 En stock : **{p.stock or 0} {unite}**  \n"
-            f"💰 Prix d'achat moyen : **{fmt_money(p.prix_achat)}**  \n"
-            f"🏷️ Prix de vente actuel : **{fmt_money(p.prix) if p.prix else '—'}**"
+            f"En stock : **{p.stock or 0} {unite}**  \n"
+            f"Prix d'achat moyen : **{fmt_money(p.prix_achat)}**  \n"
+            f"Prix de vente actuel : **{fmt_money(p.prix) if p.prix else '—'}**"
         )
         if p.lots:
             st.markdown("**Derniers achats**")
@@ -171,7 +164,7 @@ def _fiche_produit(session):
                             "Reste": l.restant,
                             "Prix achat": l.prix_achat,
                             "Prix vente": l.prix_vente,
-                            "Fournisseur": l.fournisseur or "—",
+                            "Fournisseur": l.fournisseur or "",
                         }
                         for l in reversed(p.lots[-6:])
                     ]
@@ -185,19 +178,19 @@ def _fiche_produit(session):
             prix = [l.prix_achat for l in p.lots]
             if len(prix) > 1 and prix[-1] != prix[-2]:
                 sens = "augmenté" if prix[-1] > prix[-2] else "baissé"
-                st.caption(f"📈 Le prix d'achat a {sens} : {fmt_money(prix[-2])} → {fmt_money(prix[-1])}.")
+                st.caption(f"Le prix d'achat a {sens} : {fmt_money(prix[-2])} → {fmt_money(prix[-1])}.")
         else:
             st.caption("Aucun achat enregistré pour ce produit.")
 
 
 def _historique(session):
-    st.markdown("#### 📜 Historique des entrées de stock")
+    st.markdown("#### Historique des entrées de stock")
     a, b, c = st.columns([2, 2, 3])
     periode = a.date_input(
         "Période", value=(date.today() - timedelta(days=30), date.today()), format="DD/MM/YYYY", key="hist_entrees"
     )
     fournisseur = b.selectbox("Fournisseur", ["Tous", *_fournisseurs(session)], key="hist_fournisseur")
-    recherche = c.text_input("Produit", placeholder="🔎  Code ou nom", key="hist_produit")
+    recherche = c.text_input("Produit", placeholder="Code ou nom", key="hist_produit")
     if not isinstance(periode, (list, tuple)) or len(periode) != 2:
         return
     debut, fin = datetime.combine(periode[0], time.min), datetime.combine(periode[1], time.max)
@@ -218,9 +211,9 @@ def _historique(session):
                 "Quantité": f"{l.quantite} {l.produit.unite or ''}".strip(),
                 "Reste en stock": l.restant,
                 "Prix d'achat": l.prix_achat,
-                "Prix de vente": l.prix_vente,
+                "Prix de vente": l.prix_vente or l.produit.prix,  # inventaire : prix en vigueur
                 "Total payé": l.prix_achat * l.quantite,
-                "Fournisseur": l.fournisseur or "—",
+                "Fournisseur": l.fournisseur or "",
             }
             for l in lots
         ]
@@ -242,5 +235,5 @@ def _historique(session):
         },
     )
     st.download_button(
-        "⬇️ Exporter (CSV)", df.to_csv(index=False, sep=";").encode("utf-8-sig"), "entrees_stock.csv", "text/csv"
+        "Exporter (CSV)", df.to_csv(index=False, sep=";").encode("utf-8-sig"), "entrees_stock.csv", "text/csv"
     )

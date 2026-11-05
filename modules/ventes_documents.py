@@ -21,13 +21,11 @@ def _statut(v):
 
 def show_ventes_documents():
     params = get_params()
-    config.entete(
-        "Ventes & documents", "Retrouvez une vente pour réimprimer sa facture, sa reconnaissance de dette ou ses reçus."
-    )
+    config.entete("Ventes & documents", "Factures, reconnaissances de dette et reçus")
     f1, f2, f3 = st.columns([2, 2, 3])
     periode = f1.date_input("Période", value=(date.today() - timedelta(days=30), date.today()), format="DD/MM/YYYY")
     reglement = f2.selectbox("Règlement", ["Toutes", "Comptant", "À crédit", "Crédit non soldé"])
-    recherche = f3.text_input("Client ou produit", placeholder="🔎  Rechercher…")
+    recherche = f3.text_input("Client ou produit", placeholder="Rechercher…")
     if not isinstance(periode, (list, tuple)) or len(periode) != 2:
         st.caption("Choisissez une date de début et une date de fin.")
         return
@@ -74,7 +72,7 @@ def show_ventes_documents():
                 for v in ventes
             ]
         )
-        st.caption("👆 Cliquez sur une vente pour obtenir ses documents.")
+        st.caption("Cliquez sur une vente pour obtenir ses documents.")
         event = st.dataframe(
             df,
             hide_index=True,
@@ -85,7 +83,7 @@ def show_ventes_documents():
             column_config={k: st.column_config.NumberColumn(format="localized") for k in ["Total", "Reste dû"]},
         )
         st.download_button(
-            "⬇️ Exporter la liste (CSV)", df.to_csv(index=False, sep=";").encode("utf-8-sig"), "ventes.csv", "text/csv"
+            "Exporter la liste (CSV)", df.to_csv(index=False, sep=";").encode("utf-8-sig"), "ventes.csv", "text/csv"
         )
 
         if event.selection.rows:
@@ -94,7 +92,7 @@ def show_ventes_documents():
             st.markdown(f"### Facture F-{v.id:05d} · {v.client.nom} · {fmt_money(v.total)}")
             b = st.columns(3)
             b[0].download_button(
-                "📄 Facture",
+                "Facture",
                 documents.facture(v, params),
                 f"Facture_F-{v.id:05d}.pdf",
                 "application/pdf",
@@ -103,18 +101,18 @@ def show_ventes_documents():
             )
             if v.dette:
                 b[1].download_button(
-                    "✍️ Reconnaissance de dette",
+                    "Reconnaissance de dette",
                     documents.reconnaissance_dette(v.dette, params),
                     f"Reconnaissance_dette_D-{v.dette.id:05d}.pdf",
                     "application/pdf",
                     width="stretch",
                 )
                 config.bouton_page(
-                    b[2], "💳 Ouvrir la dette", "Dettes", etat={"dette_ouverte": v.dette.id}, width="stretch"
+                    b[2], "Ouvrir la dette", "Dettes", etat={"dette_ouverte": v.dette.id}, width="stretch"
                 )
                 for p in v.dette.paiements:
                     st.download_button(
-                        f"🧾 Reçu R-{p.id:05d} · {fmt_money(p.montant)} · {p.date.strftime('%d/%m/%Y')}",
+                        f"Reçu R-{p.id:05d} · {fmt_money(p.montant)} · {p.date.strftime('%d/%m/%Y')}",
                         documents.recu(p, params),
                         f"Recu_R-{p.id:05d}.pdf",
                         "application/pdf",

@@ -1,4 +1,4 @@
-"""🗂️ Base produits : la liste de référence de la boutique (code, nom, catégorie, unité, prix, seuil).
+"""Base produits : la liste de référence de la boutique (code, nom, catégorie, unité, prix, seuil).
 
 - Les prix se modifient directement dans le tableau, ou produit par produit (bouton « Modifier »).
 - Stock : la colonne se modifie comme un inventaire (quantité comptée, écart noté dans le journal) ;
@@ -37,16 +37,14 @@ def unites(session, produits=None):
 
 def show_catalogue():
     with get_session() as session:
-        config.entete(
-            "Base produits", "Vos produits et leurs prix : c'est cette liste qui sert aux achats et aux ventes."
-        )
+        config.entete("Base produits", "Produits, prix et stock")
         produits = session.query(Produit).order_by(Produit.categorie, Produit.nom).all()
 
         if st.session_state.get("base_import") or not produits:
             with st.container(key="carte_import"):
                 h, f = st.columns([5, 1], vertical_alignment="center")
-                h.markdown("#### 📥 Importer la base produits")
-                if produits and f.button("✖ Fermer", width="stretch"):
+                h.markdown("#### Importer la base produits")
+                if produits and f.button("Fermer", width="stretch"):
                     st.session_state["base_import"] = False
                     st.rerun()
                 _import(session, produits)
@@ -54,33 +52,33 @@ def show_catalogue():
                 return
 
         a, b = st.columns([3, 2], vertical_alignment="center")
-        filtre = a.text_input("Filtrer", placeholder="🔎  Code, nom ou catégorie…", label_visibility="collapsed")
+        filtre = a.text_input("Filtrer", placeholder="Code, nom ou catégorie…", label_visibility="collapsed")
         avec_prix = sum(1 for p in produits if p.prix)
         en_stock = sum(1 for p in produits if (p.stock or 0) > 0)
         b.markdown(
             f"<div class='bande-jour' style='margin:0'><b>{len(produits)}</b> produits"
-            f"<span>🏷️ {avec_prix} avec prix</span><span>📦 {en_stock} en stock</span></div>",
+            f"<span>{avec_prix} avec prix</span><span>{en_stock} en stock</span></div>",
             unsafe_allow_html=True,
         )
         _liste(session, produits, filtre)
 
         st.write("")
         c = st.columns(5)
-        if c[0].button("➕ Ajouter un produit", type="primary", width="stretch"):
+        if c[0].button("Ajouter un produit", type="primary", width="stretch", icon=":material/add:"):
             dialog_produit()
-        if c[1].button("✏️ Modifier un produit", width="stretch"):
+        if c[1].button("Modifier un produit", width="stretch", icon=":material/edit:"):
             dialog_modifier()
-        if c[2].button("📥 Importer la base", width="stretch"):
+        if c[2].button("Importer la base", width="stretch", icon=":material/upload_file:"):
             st.session_state["base_import"] = True
             st.rerun()
         c[3].download_button(
-            "⬇️ Exporter en Excel",
+            "Exporter en Excel",
             I.modele_excel(produits),
             "base_produits.xlsx",
             width="stretch",
             help="Toute la base, à modifier dans Excel puis réimporter",
         )
-        config.bouton_page(c[4], "📦 Entrée de stock", "Entrees", width="stretch")
+        config.bouton_page(c[4], "Entrée de stock", "Entrees", width="stretch")
 
 
 def _liste(session, produits, filtre):
@@ -112,8 +110,8 @@ def _liste(session, produits, filtre):
     df["Seuil d'alerte"] = df["Seuil d'alerte"].astype("Int64")
     devise = config.DEVISE
     st.caption(
-        f"{len(df)} produit(s) · double-cliquez sur une case pour la modifier, puis « Enregistrer » · "
-        f"📋 Stock : tapez la quantité comptée (inventaire) · seuil vide = {seuil} (général)"
+        f"{len(df)} produit(s). Double-cliquez sur une case pour la modifier. "
+        f"Stock : quantité comptée en magasin. Seuil vide : {seuil} par défaut."
     )
     edite = st.data_editor(
         df,
@@ -143,7 +141,7 @@ def _liste(session, produits, filtre):
             ),
             "Marge": st.column_config.NumberColumn(format="%.0f %%", width="small"),
             "Stock": st.column_config.NumberColumn(
-                "Stock 📋",
+                "Stock ",
                 min_value=0,
                 step=1,
                 width="small",
@@ -179,24 +177,24 @@ def _enregistrer(session, df, edite):
             autres += 1
     lignes = []
     if stocks:
-        lignes.append(f"📋 **Inventaire** : {len(stocks)} stock(s) corrigé(s)")
+        lignes.append(f"**Inventaire** : {len(stocks)} stock(s) corrigé(s)")
         for n, a, b, u in stocks[:8]:
             if b > a:
-                signe = f":green[🔺 +{b - a}]"
+                signe = f":green[+{b - a}]"
             elif b == 0:
-                signe = f":red[⚠️ {b - a} : le stock tombe à zéro]"
+                signe = f":red[{b - a} : le stock tombe à zéro]"
             else:
-                signe = f":red[🔻 {b - a}]"
+                signe = f":red[{b - a}]"
             lignes.append(f"  - {n} : {a} → **{b}** {u}  {signe}")
         if len(stocks) > 8:
             lignes.append(f"  - … et {len(stocks) - 8} autre(s)")
     if prix:
-        lignes.append(f"🏷️ **Prix** modifiés : {prix} produit(s)")
+        lignes.append(f"**Prix** modifiés : {prix} produit(s)")
     if autres:
-        lignes.append(f"✏️ Autres informations modifiées : {autres} produit(s)")
+        lignes.append(f"Autres informations modifiées : {autres} produit(s)")
     with st.container(border=True):
         st.markdown("**Modifications à enregistrer**  \n" + "  \n".join(lignes))
-        if not st.button("💾 Enregistrer les modifications", type="primary"):
+        if not st.button("Enregistrer les modifications", type="primary"):
             return
 
     noms = [str(n).strip().lower() for n in edite["Produit"]]
@@ -275,7 +273,7 @@ def _champs_produit(session, p=None, nom_propose=""):
         disabled=en_stock, help=AIDE_PRIX_ACHAT if en_stock else "Sert de prix proposé à la prochaine entrée de stock",
     )  # fmt: skip
     if pv and pa and pv < pa:
-        st.warning(f"⚠️ Prix de vente inférieur au prix d'achat : perte de {fmt_money(pa - pv)} par {unite or 'pièce'}.")
+        st.warning(f"Prix de vente inférieur au prix d'achat : perte de {fmt_money(pa - pv)} par {unite or 'pièce'}.")
     elif pv and pa:
         st.caption(f"Marge : {fmt_money(pv - pa)} par {unite or 'pièce'} ({(pv - pa) / pv:.0%})")
     seuil = st.number_input(
@@ -298,7 +296,7 @@ def _verifier(session, v, produit_id=None):
     return None
 
 
-@st.dialog("➕ Ajouter un produit à la base")
+@st.dialog("Ajouter un produit à la base")
 def dialog_produit(nom_propose=""):
     with get_session() as session:
         v = _champs_produit(session, nom_propose=nom_propose)
@@ -320,7 +318,7 @@ def dialog_produit(nom_propose=""):
             st.rerun()
 
 
-@st.dialog("✏️ Modifier un produit")
+@st.dialog("Modifier un produit")
 def dialog_modifier(produit_id=None):
     with get_session() as session:
         produits = session.query(Produit).order_by(Produit.nom).all()
@@ -329,16 +327,16 @@ def dialog_modifier(produit_id=None):
             "Produit",
             list(par_id),
             index=list(par_id).index(produit_id) if produit_id in par_id else None,
-            placeholder="🔎  Tapez le début du nom ou le code",
+            placeholder="Tapez le début du nom ou le code",
             format_func=lambda i: f"{par_id[i].reference} · {par_id[i].nom} — {fmt_money(par_id[i].prix)}",
         )
         if pid is None:
             return
         p = par_id[pid]
-        st.caption(f"📦 En stock : {p.stock or 0} {p.unite or 'pièce'}")
+        st.caption(f"En stock : {p.stock or 0} {p.unite or 'pièce'}")
         v = _champs_produit(session, p)
         a, b = st.columns(2)
-        if a.button("💾 Enregistrer", type="primary", width="stretch"):
+        if a.button("Enregistrer", type="primary", width="stretch"):
             erreur = _verifier(session, v, p.id)
             if erreur:
                 st.error(erreur)
@@ -356,7 +354,7 @@ def dialog_modifier(produit_id=None):
             or session.query(VenteProduit).filter_by(produit_id=p.id).first()
             or session.query(HistoriqueVente).filter_by(produit_nom=p.nom).first()
         )
-        if not utilise and b.button("🗑️ Supprimer", width="stretch"):
+        if not utilise and b.button("Supprimer", width="stretch"):
             session.delete(p)
             session.commit()
             st.session_state.pop("editeur_catalogue", None)
@@ -369,11 +367,10 @@ def dialog_modifier(produit_id=None):
 # ------------------------------------------------------------------ Import Excel
 def _import(session, produits):
     st.markdown(
-        "Déposez votre fichier **Excel ou CSV** de produits (par exemple le catalogue quincaillerie fourni). "
-        "Seul le **nom** est obligatoire. Un produit déjà présent (même code, sinon même nom) est **mis à jour**, "
-        "jamais dupliqué. Si le fichier contient la quantité et le prix d'achat, une **entrée de stock** est créée."
+        "Fichier Excel ou CSV. Seul le nom est obligatoire. Un produit déjà présent "
+        "(même code ou même nom) est mis à jour."
     )
-    st.download_button("⬇️ Télécharger un modèle vide", I.modele_excel(), "modele_produits.xlsx")
+    st.download_button("Télécharger un modèle vide", I.modele_excel(), "modele_produits.xlsx")
     with st.expander("Comment remplir le fichier ?"):
         st.markdown(
             "- Colonnes reconnues automatiquement : *Nom / Désignation / Article*, *Code / Référence*, *Catégorie / "
@@ -401,7 +398,7 @@ def _import(session, produits):
             ("Erreurs (ignorées)", compte[I.ERREUR], config.DANGER_RED if compte[I.ERREUR] else config.MUTED, ""),
         ]
     )
-    icones = {I.NOUVEAU: "🟢", I.MAJ: "🔵", I.INCHANGE: "⚪", I.ERREUR: "🔴"}
+    icones = {I.NOUVEAU: "", I.MAJ: "", I.INCHANGE: "", I.ERREUR: ""}
     st.dataframe(
         pd.DataFrame(
             [
@@ -425,7 +422,7 @@ def _import(session, produits):
             horizontal=True,
         )
     a_faire = compte[I.NOUVEAU] + compte[I.MAJ]
-    if st.button(f"✅ Importer {a_faire} produit(s)", type="primary", disabled=a_faire == 0):
+    if st.button(f"Importer {a_faire} produit(s)", type="primary", disabled=a_faire == 0):
         res = I.appliquer(session, lignes, "remplacer" if mode.startswith("Le stock total") else "ajouter")
         session.commit()
         st.session_state.pop("editeur_catalogue", None)

@@ -82,38 +82,38 @@ MENU = [
     (
         None,
         [
-            ("Accueil", "🏠", "Tableau de bord", dashboard.show_dashboard),
-            ("Alertes", "🔔", "Alertes", alertes.show_alertes),
+            ("Accueil", ":material/space_dashboard:", "Tableau de bord", dashboard.show_dashboard),
+            ("Alertes", ":material/notifications:", "Alertes", alertes.show_alertes),
         ],
     ),
     (
         "Vendre",
         [
-            ("Ventes", "🛒", "Nouvelle vente", ventes.show_ventes),
-            ("Dettes", "💳", "Dettes clients", dettes.show_dettes),
+            ("Ventes", ":material/point_of_sale:", "Nouvelle vente", ventes.show_ventes),
+            ("Dettes", ":material/account_balance_wallet:", "Dettes clients", dettes.show_dettes),
         ],
     ),
     (
         "Stock",
         [
-            ("Entrees", "📥", "Entrée de stock", entrees.show_entrees),
-            ("Produits", "📦", "État du stock", produits.show_produits),
-            ("Catalogue", "🗂️", "Base produits", catalogue.show_catalogue),
+            ("Entrees", ":material/move_to_inbox:", "Entrée de stock", entrees.show_entrees),
+            ("Produits", ":material/inventory_2:", "État du stock", produits.show_produits),
+            ("Catalogue", ":material/category:", "Base produits", catalogue.show_catalogue),
         ],
     ),
     (
         "Gérer",
         [
-            ("Clients", "👥", "Clients", clients.show_clients),
-            ("Documents", "📄", "Ventes & documents", ventes_documents.show_ventes_documents),
+            ("Clients", ":material/group:", "Clients", clients.show_clients),
+            ("Documents", ":material/receipt_long:", "Ventes & documents", ventes_documents.show_ventes_documents),
         ],
     ),
     (
         "Réglages",
         [
-            ("Paramètres", "⚙️", "Paramètres", parametres.show_parametres),
-            ("Base", "🗄️", "Base de données", base_donnees.show_base),
-            ("Aide", "❓", "Guide rapide", aide.show_aide),
+            ("Paramètres", ":material/settings:", "Paramètres", parametres.show_parametres),
+            ("Base", ":material/database:", "Base de données", base_donnees.show_base),
+            ("Aide", ":material/help:", "Guide rapide", aide.show_aide),
         ],
     ),
 ]
@@ -137,14 +137,15 @@ with st.sidebar:
         if section:
             st.markdown(f"<p class='crm-menu-title'>{section}</p>", unsafe_allow_html=True)
         for cle, icone, libelle, _ in items:
-            texte = f"{icone}  {libelle}"
+            texte = libelle
             if cle == "Alertes" and compte[A.CRITIQUE] + compte[A.ATTENTION]:
-                texte += f"  · {compte[A.CRITIQUE] + compte[A.ATTENTION]}"
+                texte += f" ({compte[A.CRITIQUE] + compte[A.ATTENTION]})"
             if cle == "Dettes" and compte["dette_retard"]:
-                texte += f"  · 🔴 {compte['dette_retard']}"
+                texte += f" ({compte['dette_retard']} en retard)"
             st.button(  # on_click : la page change avant la relance, sans 2e chargement
                 texte,
                 key=f"menu_{cle}",
+                icon=icone,
                 width="stretch",
                 type="primary" if cle == page else "secondary",
                 on_click=config.aller_vers,
@@ -154,6 +155,6 @@ with st.sidebar:
     auth.bouton_deconnexion()
 
 if "flash" in st.session_state:
-    st.toast(st.session_state.pop("flash"), icon="✅")
+    st.toast(st.session_state.pop("flash"), icon=":material/check_circle:")
 
 PAGES[page]()

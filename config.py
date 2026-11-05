@@ -6,7 +6,7 @@ from html import escape
 import streamlit as st
 
 APP_NAME = "CRM Pro"
-APP_ICON = "💼"
+APP_ICON = ""
 
 # Valeurs par défaut (modifiables dans Paramètres, stockées en base)
 SEUIL_STOCK = 2

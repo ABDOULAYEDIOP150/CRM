@@ -48,14 +48,14 @@ def show_base():
     engine = init_db()
     url = str(engine.url)
     type_db, ou, fichier = _description(url)
-    config.entete("Base de données", "Toutes les données de l'application sont enregistrées ici.")
+    config.entete("Base de données", "Stockage, sauvegarde et export")
 
     st.markdown(f"**Type :** {type_db}  \n**Emplacement :** `{ou}`")
     if fichier is not None:
         st.info(
             "Les données sont enregistrées dans le fichier ci-dessus, sur l'ordinateur qui fait tourner l'application. "
             "Faites une **sauvegarde régulière** (bouton plus bas).  \n"
-            "⚠️ Sur un hébergement en ligne comme Streamlit Cloud, ce fichier est **effacé à chaque redémarrage** : "
+            "Sur un hébergement en ligne comme Streamlit Cloud, ce fichier est **effacé à chaque redémarrage** : "
             "il faut alors une base PostgreSQL (voir en bas de page)."
         )
     else:
@@ -66,7 +66,7 @@ def show_base():
             "très bon" if ms < 30 else "correct" if ms < 80 else
             "lent : l'application et la base sont loin l'une de l'autre (voir l'aide ci-dessous)"
         )  # fmt: skip
-        st.caption(f"⏱️ Temps de réponse de la base : **{ms:.0f} ms** par aller-retour · {conseil}")
+        st.caption(f"Temps de réponse de la base : **{ms:.0f} ms** par aller-retour · {conseil}")
 
     with get_session() as s:
         comptes = {}
@@ -83,16 +83,16 @@ def show_base():
                 comptes[noms[table.name]] = s.execute(select(func.count()).select_from(table)).scalar()
     config.kpis([(k, v, config.SECONDARY_BLUE, "") for k, v in comptes.items()])
 
-    st.markdown("#### 💾 Sauvegarde")
+    st.markdown("#### Sauvegarde")
     c1, c2 = st.columns(2)
     # L'export lit toutes les tables : on ne le prépare que sur demande (sinon la page est lente en ligne).
     if "export_xlsx" not in st.session_state:
-        if c1.button("📊 Préparer l'export Excel", width="stretch", type="primary"):
+        if c1.button("Préparer l'export Excel", width="stretch", type="primary"):
             st.session_state["export_xlsx"] = _export_excel(engine)
             st.rerun()
     else:
         c1.download_button(
-            "📥 Télécharger l'export Excel",
+            "Télécharger l'export Excel",
             st.session_state.pop("export_xlsx"),
             "crm_export.xlsx",
             "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -101,7 +101,7 @@ def show_base():
         )
     if fichier is not None and fichier.exists():
         c2.download_button(
-            "🗄️ Télécharger le fichier de la base (.db)",
+            "Télécharger le fichier de la base (.db)",
             fichier.read_bytes(),
             "crm_sauvegarde.db",
             "application/octet-stream",

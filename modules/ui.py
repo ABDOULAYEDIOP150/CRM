@@ -3,12 +3,16 @@
 Tout est en HTML/CSS (styles dans static/styles.css). Les textes venant de la base sont échappés.
 """
 
+import re
 from html import escape
 
 from config import fmt_money
 
 # Icônes (tracés Material Design, 24×24)
 _SVG = {
+    "alerte": "M1 21h22L12 2 1 21zm12-3h-2v-2h2v2zm0-4h-2v-4h2v4z",
+    "attention": "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z",
+    "info": "M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-6h2v6zm0-8h-2V7h2v2z",
     "panier": "M7 18c-1.1 0-1.99.9-1.99 2S5.9 22 7 22s2-.9 2-2-.9-2-2-2zM1 2v2h2l3.6 7.59-1.35 2.45c-.16.28-.25.61"
     "-.25.96 0 1.1.9 2 2 2h12v-2H7.42c-.14 0-.25-.11-.25-.25l.03-.12.9-1.63h7.45c.75 0 1.41-.41 1.75-1.03l3.58-6.49"
     "A1.003 1.003 0 0 0 20 4H5.21l-.94-2H1zm16 16c-1.1 0-1.99.9-1.99 2s.89 2 1.99 2 2-.9 2-2-.9-2-2-2z",
@@ -46,16 +50,13 @@ def icone(nom, taille=22, couleur="currentColor"):
 BLEU, VERT, ORANGE, VIOLET, ROUGE = "#2563eb", "#16a34a", "#f59e0b", "#8b5cf6", "#ef4444"
 PALETTE = [BLEU, ORANGE, VERT, VIOLET, "#0891b2", ROUGE, "#64748b", "#db2777", "#65a30d"]
 
-EMOJI_CATEGORIE = {
-    "Ciment & maçonnerie": "🧱",
-    "Fer & métaux": "🔩",
-    "Plomberie": "🚰",
-    "Électricité": "💡",
-    "Peinture": "🎨",
-    "Quincaillerie générale": "🔨",
-    "Outillage": "🛠️",
-    "Alimentation": "🛒",
-}
+
+def _sigle(categorie):
+    """« Ciment & maçonnerie » -> CM ; « Plomberie » -> PL."""
+    mots = [m for m in re.split(r"[^\wÀ-ÿ]+", categorie or "") if len(m) > 2]
+    if not mots:
+        return "PR"
+    return (mots[0][0] + mots[1][0]) if len(mots) > 1 else mots[0][:2]
 
 
 def _montant(valeur):
@@ -92,9 +93,9 @@ def liste_top_produits(lignes, categories):
     """lignes : [(nom, quantité, montant)] ; categories : {nom: catégorie}."""
     html = []
     for i, (nom, qte, montant) in enumerate(lignes):
-        emoji = EMOJI_CATEGORIE.get(categories.get(nom, ""), "📦")
+        sigle = escape(_sigle(categories.get(nom, "")).upper())
         html.append(
-            f"<div class='liste-ligne'><span class='pastille' style='--c:{PALETTE[i % len(PALETTE)]}'>{emoji}</span>"
+            f"<div class='liste-ligne'><span class='pastille sigle' style='--c:{PALETTE[i % len(PALETTE)]}'>{sigle}</span>"
             f"<span class='liste-nom'>{escape(nom)}<small>{fmt_money(montant)}</small></span>"
             f"<span class='liste-val'>{qte:g} <small>vendus</small></span></div>"
         )
@@ -148,16 +149,16 @@ def legende(valeurs):
     )
 
 
-NIVEAU_ICONE = {"critique": ("⚠️", ROUGE), "attention": ("❗", ORANGE), "info": ("ℹ️", BLEU)}
+NIVEAU_ICONE = {"critique": ("alerte", ROUGE), "attention": ("attention", ORANGE), "info": ("info", BLEU)}
 
 
 def liste_alertes(alertes):
     html = []
     for a in alertes:
-        emoji, couleur = NIVEAU_ICONE.get(a.niveau, ("•", BLEU))
+        nom_icone, couleur = NIVEAU_ICONE.get(a.niveau, ("info", BLEU))
         montant = f"<span class='liste-val' style='color:{couleur}'>{fmt_money(a.montant)}</span>" if a.montant else ""
         html.append(
-            f"<div class='liste-ligne'><span class='pastille' style='--c:{couleur}'>{emoji}</span>"
+            f"<div class='liste-ligne'><span class='pastille' style='--c:{couleur}'>{icone(nom_icone, 20, couleur)}</span>"
             f"<span class='liste-nom'>{escape(a.titre)}<small>{escape(a.detail)}</small></span>{montant}</div>"
         )
     return "".join(html)
@@ -193,7 +194,7 @@ def logo_menu(nom_boutique):
 
 
 def pied_menu():
-    return f"<div class='menu-pied'>{DRAPEAU_SN}<p>Gérez votre boutique,<br>suivez chaque franc.</p></div>"
+    return f"<div class='menu-pied'>{DRAPEAU_SN}</div>"
 
 
 def barre_haut(titre, sous_titre, lieu, nb_alertes, boutique):

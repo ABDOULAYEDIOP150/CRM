@@ -1,4 +1,4 @@
-"""Page 🔔 Alertes : tout ce qui demande une action, du plus urgent au moins urgent."""
+"""Page Alertes : tout ce qui demande une action, du plus urgent au moins urgent."""
 
 from html import escape
 
@@ -14,8 +14,8 @@ from db.utils import get_params
 COULEUR = {A.CRITIQUE: config.DANGER_RED, A.ATTENTION: config.WARNING_ORANGE, A.INFO: config.MUTED}
 FAMILLES = {
     "Tout": None,
-    "💳 Dettes": {"dette_retard", "echeance_aujourdhui", "echeance_proche", "plafond"},
-    "📦 Stock": {"rupture", "stock_faible", "perte", "dormant", "sans_prix_achat"},
+    "Dettes": {"dette_retard", "echeance_aujourdhui", "echeance_proche", "plafond"},
+    "Stock": {"rupture", "stock_faible", "perte", "dormant", "sans_prix_achat"},
 }
 
 
@@ -46,7 +46,7 @@ def ligne_alerte(a, params, cle):
         )
         lien = D.lien_whatsapp(a.client.telephone, msg)
         if lien:
-            b2.link_button("📲 WhatsApp", lien, width="stretch")
+            b2.link_button("WhatsApp", lien, width="stretch")
 
 
 def show_alertes():
@@ -54,12 +54,12 @@ def show_alertes():
     with get_session() as session:
         alertes = A.calculer_alertes(session, params)
         n = A.compter(alertes)
-        config.entete("Alertes", "Tout ce qui demande votre attention, du plus urgent au moins urgent.")
+        config.entete("Alertes", "Classées par urgence")
         config.kpis(
             [
-                ("🔴 Urgent", n[A.CRITIQUE], config.DANGER_RED, "retards de paiement, ruptures"),
-                ("🟠 À surveiller", n[A.ATTENTION], config.WARNING_ORANGE, "paiements proches, stock faible…"),
-                ("ℹ️ Pour information", n[A.INFO], config.MUTED, "stock dormant, prix manquants"),
+                ("Urgent", n[A.CRITIQUE], config.DANGER_RED, "retards de paiement, ruptures"),
+                ("À surveiller", n[A.ATTENTION], config.WARNING_ORANGE, "paiements proches, stock faible…"),
+                ("Pour information", n[A.INFO], config.MUTED, "stock dormant, prix manquants"),
             ]
         )
         st.write("")
@@ -67,7 +67,7 @@ def show_alertes():
         types = FAMILLES.get(famille or "Tout")
         visibles = [a for a in alertes if types is None or a.type in types]
         if not visibles:
-            st.success("✅ Aucune alerte. Tout est en ordre.")
+            st.success("Aucune alerte. Tout est en ordre.")
             return
 
         for t, (icone, libelle) in A.TYPES.items():

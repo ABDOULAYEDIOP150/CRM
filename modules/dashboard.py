@@ -174,17 +174,19 @@ def show_dashboard():
 
     config.entete(
         "Tableau de bord",
-        f"{params['boutique_nom']} · {JOURS[aujourd.weekday()]} {aujourd.day} {MOIS[aujourd.month - 1]} {aujourd.year}",
+        f"{JOURS[aujourd.weekday()].capitalize()} {aujourd.day} {MOIS[aujourd.month - 1]} {aujourd.year}",
     )
 
     # ---------- Actions rapides + période ----------
     b = st.columns([1, 1, 1, 0.6, 1.1], vertical_alignment="center")
-    config.bouton_page(b[0], "🛒 Nouvelle vente", "Ventes", type="primary", width="stretch")
-    config.bouton_page(b[1], "💰 Encaisser", "Dettes", width="stretch")
-    config.bouton_page(b[2], "📦 Entrée de stock", "Entrees", width="stretch")
+    config.bouton_page(
+        b[0], "Nouvelle vente", "Ventes", type="primary", width="stretch", icon=":material/add_shopping_cart:"
+    )
+    config.bouton_page(b[1], "Encaisser", "Dettes", width="stretch", icon=":material/payments:")
+    config.bouton_page(b[2], "Entrée de stock", "Entrees", width="stretch", icon=":material/move_to_inbox:")
     periode = b[4].selectbox(
         "Période", PERIODES, index=PERIODES.index("30 derniers jours"), label_visibility="collapsed",
-        key="dash_periode", format_func=lambda x: f"📅  {x}",
+        key="dash_periode", format_func=lambda x: f"{x}",
     )  # fmt: skip
     # Gardé en mémoire tant que rien n'est enregistré en base : changer de page puis revenir = instantané
     d = memoire(("tableau_de_bord", periode, aujourd, seuil), lambda: _donnees(periode, seuil))
@@ -225,9 +227,9 @@ def show_dashboard():
     j = d["jour"]
     st.markdown(
         "<div class='bande-jour'><b>Aujourd'hui</b>"
-        f"<span>🛒 {fmt_money(j['ca'])} vendus</span><span>💵 {fmt_money(j['encaisse'])} encaissés</span>"
-        f"<span>🧾 {j['nb_ventes']} vente(s)</span>"
-        f"<span>📈 {fmt_money(j['benefice'])} de bénéfice</span></div>",
+        f"<span>{fmt_money(j['ca'])} vendus</span><span>{fmt_money(j['encaisse'])} encaissés</span>"
+        f"<span>{j['nb_ventes']} vente(s)</span>"
+        f"<span>{fmt_money(j['benefice'])} de bénéfice</span></div>",
         unsafe_allow_html=True,
     )
 
@@ -252,7 +254,7 @@ def show_dashboard():
         recents = d["recents"]
         if recents:
             st.markdown(ui.liste_clients(recents, aujourd), unsafe_allow_html=True)
-            config.bouton_page(st, "Voir tous les clients →", "Clients", key="dash_clients", type="tertiary")
+            config.bouton_page(st, "Voir tous les clients", "Clients", key="dash_clients", type="tertiary")
         else:
             st.caption("Aucun client servi pour l'instant.")
 
@@ -269,7 +271,7 @@ def show_dashboard():
         st.markdown(ui.titre_carte("Stock par catégorie", "stock", ui.VERT), unsafe_allow_html=True)
         if stock["par_categorie"]:
             st.markdown(ui.barres_progression(dict(list(stock["par_categorie"].items())[:6])), unsafe_allow_html=True)
-            st.caption(f"Part de la valeur du stock · total {fmt_money(stock['valeur_achat'])} au prix d'achat")
+            st.caption(f"Valeur totale au prix d'achat : {fmt_money(stock['valeur_achat'])}")
         else:
             st.caption("Aucun produit en stock.")
     with g6, _carte("alertes"):
@@ -278,13 +280,13 @@ def show_dashboard():
         urgentes = [a for a in alertes if a.niveau != A.INFO] or alertes
         if urgentes:
             st.markdown(ui.liste_alertes(urgentes[:5]), unsafe_allow_html=True)
-            config.bouton_page(st, "Voir et traiter →", "Alertes", key="toutes_alertes", type="tertiary")
+            config.bouton_page(st, "Voir toutes les alertes", "Alertes", key="toutes_alertes", type="tertiary")
         else:
-            st.success("Rien à signaler 👍")
+            st.success("Rien à signaler ")
 
     # ---------- Analyse détaillée ----------
     st.markdown("<div class='section-titre'>Analyse détaillée</div>", unsafe_allow_html=True)
-    t1, t2, t3, t4 = st.tabs(["📈 Ventes", "💳 Dettes", "📦 Stock", "👥 Clients"])
+    t1, t2, t3, t4 = st.tabs(["Ventes", "Dettes", "Stock", "Clients"])
     with t1:
         _onglet_ventes(p, d["evolution_30j"])
     with t2:
@@ -367,8 +369,8 @@ def _onglet_dettes(d, top):
             df = pd.DataFrame(top, columns=["Client", "Doit"])
             st.plotly_chart(_barres(df, "Doit", "Client", config.WARNING_ORANGE), width="stretch")
         else:
-            st.info("Personne ne vous doit d'argent 👍")
-    config.bouton_page(st, "💳 Gérer les dettes →", "Dettes")
+            st.info("Personne ne vous doit d'argent ")
+    config.bouton_page(st, "Gérer les dettes", "Dettes")
 
 
 def _onglet_stock(s, n):
@@ -382,7 +384,7 @@ def _onglet_stock(s, n):
     )
     g1, g2 = st.columns(2)
     with g1.container(border=True):
-        st.markdown("**🛒 À commander**")
+        st.markdown("**À commander**")
         a_commander = s["ruptures"] + s["faibles"]
         if a_commander:
             st.dataframe(
@@ -407,7 +409,7 @@ def _onglet_stock(s, n):
             df = pd.DataFrame(list(s["par_categorie"].items()), columns=["Catégorie", "Valeur"])
             st.plotly_chart(_barres(df, "Valeur", "Catégorie", config.MUTED), width="stretch")
     if n["dormant"]:
-        st.caption(f"💤 {n['dormant']} produit(s) ne se vendent pas : voir la page Alertes.")
+        st.caption(f"{n['dormant']} produit(s) ne se vendent pas : voir la page Alertes.")
 
 
 def _onglet_clients(p, nouveaux, top):

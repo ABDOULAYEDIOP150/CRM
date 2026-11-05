@@ -1,4 +1,4 @@
-"""📦 Stock : ce qu'il y a en magasin, la valeur, la marge, le détail des arrivages, l'inventaire et le journal."""
+"""Stock : ce qu'il y a en magasin, la valeur, la marge, le détail des arrivages, l'inventaire et le journal."""
 
 import pandas as pd
 import streamlit as st
@@ -14,14 +14,14 @@ TYPES_MVT = ["Vente", "Réception", "Import", "Inventaire", "Correction", "Créa
 
 def _etat(p, seuil):
     if (p.stock or 0) <= 0:
-        return "🔴 Rupture"
-    return "🟠 Faible" if p.stock <= p.seuil(seuil) else "🟢 OK"
+        return "Rupture"
+    return "Faible" if p.stock <= p.seuil(seuil) else "OK"
 
 
 def show_produits():
     seuil = int(get_param("seuil_stock"))
     with get_session() as session:
-        config.entete("Stock", "Ce que vous avez en magasin, ce que ça vaut et ce que ça rapporte.")
+        config.entete("Stock", "Quantités, valeur et marges")
         produits = session.query(Produit).order_by(Produit.categorie, Produit.nom).all()
         ruptures = [p for p in produits if (p.stock or 0) <= 0]
         faibles = [p for p in produits if 0 < (p.stock or 0) <= p.seuil(seuil)]
@@ -52,13 +52,13 @@ def show_produits():
         )
         st.write("")
         a, b, c = st.columns([1.4, 1.4, 3], vertical_alignment="bottom")
-        config.bouton_page(a, "📥 Entrée de stock", "Entrees", type="primary", width="stretch")
-        config.bouton_page(b, "🗂️ Base produits", "Catalogue", width="stretch")
-        filtre = c.text_input("Filtrer", placeholder="🔎  Code, nom ou catégorie…", label_visibility="collapsed")
+        config.bouton_page(a, "Entrée de stock", "Entrees", type="primary", width="stretch")
+        config.bouton_page(b, "Base produits", "Catalogue", width="stretch")
+        filtre = c.text_input("Filtrer", placeholder="Code, nom ou catégorie…", label_visibility="collapsed")
         if filtre:
             f = filtre.lower()
             produits = [p for p in produits if f in f"{p.reference} {p.nom} {p.categorie}".lower()]
-        t1, t2, t3 = st.tabs(["📦 État du stock", "📋 Inventaire (comptage)", "📜 Mouvements"])
+        t1, t2, t3 = st.tabs(["État du stock", "Inventaire (comptage)", "Mouvements"])
         with t1:
             _etat_stock(session, produits, seuil)
         with t2:
@@ -87,7 +87,6 @@ def _etat_stock(session, produits, seuil):
                 "État": _etat(p, seuil),
             }
         )
-    st.caption("👆 Cliquez sur un produit pour voir ses arrivages et changer son prix de vente.")
     event = st.dataframe(
         pd.DataFrame(lignes),
         hide_index=True,
@@ -142,7 +141,7 @@ def _etat_stock(session, produits, seuil):
         (st.error if nouveau < (p.prix_achat or 0) else st.caption)(
             f"Marge : {fmt_money(gain)} par {unite} ({taux:.0%}) sur un prix d'achat moyen de {fmt_money(p.prix_achat)}"
         )
-        if nouveau != int(p.prix or 0) and st.button("💾 Appliquer ce prix", type="primary"):
+        if nouveau != int(p.prix or 0) and st.button("Appliquer ce prix", type="primary"):
             p.prix = nouveau
             session.commit()
             config.flash(f"Nouveau prix de {p.nom} : {fmt_money(nouveau)}.")
@@ -150,10 +149,7 @@ def _etat_stock(session, produits, seuil):
 
 
 def _inventaire(session, produits):
-    st.markdown(
-        "Comptez ce qu'il y a **réellement** en magasin et tapez-le dans la colonne *Compté*. "
-        "Les écarts (pertes, casse, erreurs) sont corrigés et notés dans le journal."
-    )
+    st.markdown("Saisissez les quantités comptées. Les écarts sont corrigés et enregistrés dans le journal.")
     if not produits:
         return
     df = pd.DataFrame(
@@ -185,7 +181,7 @@ def _inventaire(session, produits):
         for _, r in ecarts.iterrows()
     )
     st.warning(f"{len(ecarts)} écart(s) · valeur {'perdue' if perte > 0 else 'retrouvée'} : {fmt_money(abs(perte))}")
-    if st.button("✅ Valider l'inventaire", type="primary"):
+    if st.button("Valider l'inventaire", type="primary"):
         for _, r in ecarts.iterrows():
             fixer_stock(
                 session,
@@ -201,9 +197,7 @@ def _inventaire(session, produits):
 
 
 def _mouvements(session, produits):
-    st.markdown(
-        "Chaque vente, entrée, import ou inventaire est enregistré ici : vous savez toujours pourquoi un stock a changé."
-    )
+    st.markdown("Historique des mouvements de stock.")
     par_id = {p.id: f"{p.reference} · {p.nom}" for p in produits}
     a, b = st.columns([2, 1])
     choix = a.selectbox(
@@ -238,5 +232,5 @@ def _mouvements(session, produits):
     )
     st.dataframe(df, hide_index=True, width="stretch")
     st.download_button(
-        "⬇️ Exporter (CSV)", df.to_csv(index=False, sep=";").encode("utf-8-sig"), "mouvements_stock.csv", "text/csv"
+        "Exporter (CSV)", df.to_csv(index=False, sep=";").encode("utf-8-sig"), "mouvements_stock.csv", "text/csv"
     )

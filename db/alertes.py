@@ -16,15 +16,15 @@ ORDRE = {CRITIQUE: 0, ATTENTION: 1, INFO: 2}
 
 # type -> (icône, libellé de la catégorie)
 TYPES = {
-    "dette_retard": ("🔴", "Dettes en retard"),
-    "echeance_aujourdhui": ("🟠", "Paiements attendus aujourd'hui"),
-    "echeance_proche": ("🟡", "Paiements attendus bientôt"),
-    "plafond": ("⛔", "Plafond de crédit dépassé"),
-    "rupture": ("📦", "Ruptures de stock"),
-    "stock_faible": ("📉", "Stock faible"),
-    "perte": ("💸", "Vendu en dessous du prix d'achat"),
-    "dormant": ("💤", "Stock qui ne se vend pas"),
-    "sans_prix_achat": ("❔", "Prix d'achat manquant"),
+    "dette_retard": ("", "Dettes en retard"),
+    "echeance_aujourdhui": ("", "Paiements attendus aujourd'hui"),
+    "echeance_proche": ("", "Paiements attendus bientôt"),
+    "plafond": ("", "Plafond de crédit dépassé"),
+    "rupture": ("", "Ruptures de stock"),
+    "stock_faible": ("", "Stock faible"),
+    "perte": ("", "Vendu en dessous du prix d'achat"),
+    "dormant": ("", "Stock qui ne se vend pas"),
+    "sans_prix_achat": ("", "Prix d'achat manquant"),
 }
 
 
