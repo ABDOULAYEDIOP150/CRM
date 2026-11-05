@@ -19,6 +19,16 @@ def _description(url):
     return "PostgreSQL", f"serveur {hote}", None
 
 
+def _export_excel(engine):
+    """Une feuille par table, une seule requête par table (pas de lecture du schéma)."""
+    xlsx = io.BytesIO()
+    with engine.connect() as conn, pd.ExcelWriter(xlsx, engine="openpyxl") as w:
+        for table in Base.metadata.sorted_tables:
+            if inspect(conn).has_table(table.name):
+                pd.read_sql_query(select(table), conn).to_excel(w, sheet_name=table.name[:31], index=False)
+    return xlsx.getvalue()
+
+
 def show_base():
     engine = init_db()
     url = str(engine.url)
@@ -53,18 +63,20 @@ def show_base():
 
     st.markdown("#### 💾 Sauvegarde")
     c1, c2 = st.columns(2)
-    xlsx = io.BytesIO()
-    with pd.ExcelWriter(xlsx, engine="openpyxl") as w:
-        for table in inspect(engine).get_table_names():
-            pd.read_sql_table(table, engine).to_excel(w, sheet_name=table[:31], index=False)
-    c1.download_button(
-        "📊 Tout exporter en Excel",
-        xlsx.getvalue(),
-        "crm_export.xlsx",
-        "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-        use_container_width=True,
-        type="primary",
-    )
+    # L'export lit toutes les tables : on ne le prépare que sur demande (sinon la page est lente en ligne).
+    if "export_xlsx" not in st.session_state:
+        if c1.button("📊 Préparer l'export Excel", use_container_width=True, type="primary"):
+            st.session_state["export_xlsx"] = _export_excel(engine)
+            st.rerun()
+    else:
+        c1.download_button(
+            "📥 Télécharger l'export Excel",
+            st.session_state.pop("export_xlsx"),
+            "crm_export.xlsx",
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            use_container_width=True,
+            type="primary",
+        )
     if fichier is not None and fichier.exists():
         c2.download_button(
             "🗄️ Télécharger le fichier de la base (.db)",

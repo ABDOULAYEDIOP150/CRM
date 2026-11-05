@@ -2,6 +2,7 @@
 
 import pandas as pd
 import streamlit as st
+from sqlalchemy.orm import selectinload
 
 import config
 from config import fmt_date, fmt_money
@@ -21,7 +22,13 @@ def show_clients():
             "Rechercher", placeholder="🔎  Nom, téléphone, quartier…", label_visibility="collapsed"
         )
 
-        clients = session.query(Client).filter(Client.nom != config.CLIENT_PASSAGE).order_by(Client.nom).all()
+        clients = (
+            session.query(Client)
+            .filter(Client.nom != config.CLIENT_PASSAGE)
+            .options(selectinload(Client.ventes), selectinload(Client.dettes))  # tout en 1 passage
+            .order_by(Client.nom)
+            .all()
+        )
         if recherche:
             r = recherche.lower()
             clients = [c for c in clients if r in f"{c.nom} {c.telephone} {c.adresse or ''}".lower()]
@@ -31,8 +38,9 @@ def show_clients():
 
         lignes = []
         for c in clients:
-            encours = D.encours_client(session, c.id)
-            retard = D.client_en_retard(session, c.id)
+            actives = [d for d in c.dettes if d.statut == "en_cours"]
+            encours = sum(d.reste for d in actives)
+            retard = any(D.situation_dette(d)["statut"] == D.STATUT_RETARD for d in actives)
             lignes.append(
                 {
                     "Client": c.nom,

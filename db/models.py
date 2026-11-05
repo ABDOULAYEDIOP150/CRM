@@ -52,6 +52,11 @@ def normaliser_url(url):
 DB_URL = _url_par_defaut()
 
 
+# lazy="selectin" sur les liens les plus parcourus : SQLAlchemy charge par exemple les paiements de
+# TOUTES les dettes affichées en une seule requête, au lieu d'une requête par dette. Avec une base en
+# ligne (Neon), chaque requête est un aller-retour sur internet : c'est ce qui rendait l'app lente.
+
+
 class Client(Base):
     __tablename__ = "clients"
     id = Column(Integer, primary_key=True)
@@ -78,7 +83,7 @@ class Produit(Base):
     seuil_alerte = Column(Integer, nullable=True)  # vide = seuil général des paramètres
     reference = Column(String, default="")  # code court du produit (ex. SAB-001), unique
     ventes_assoc = relationship("VenteProduit", back_populates="produit")
-    lots = relationship("LotStock", back_populates="produit", order_by="LotStock.date, LotStock.id")
+    lots = relationship("LotStock", back_populates="produit", order_by="LotStock.date, LotStock.id", lazy="selectin")
 
     def seuil(self, defaut):
         return self.seuil_alerte if self.seuil_alerte is not None else defaut
@@ -92,9 +97,9 @@ class Vente(Base):
     mode_livraison = Column(String)
     mode_paiement = Column(String, default="Espèces")
     remise = Column(Float, default=0)
-    client = relationship("Client", back_populates="ventes")
-    produits = relationship("VenteProduit", back_populates="vente", cascade="all, delete-orphan")
-    dette = relationship("Dette", back_populates="vente", uselist=False)
+    client = relationship("Client", back_populates="ventes", lazy="selectin")
+    produits = relationship("VenteProduit", back_populates="vente", cascade="all, delete-orphan", lazy="selectin")
+    dette = relationship("Dette", back_populates="vente", uselist=False, lazy="selectin")
     paiements = relationship("Paiement", back_populates="vente")
 
     @property
@@ -115,7 +120,7 @@ class VenteProduit(Base):
     prix_unit = Column(Float, default=0.0)
     cout = Column(Float, nullable=True)  # coût d'achat réel de la ligne (lots consommés), pour le bénéfice exact
     vente = relationship("Vente", back_populates="produits")
-    produit = relationship("Produit", back_populates="ventes_assoc")
+    produit = relationship("Produit", back_populates="ventes_assoc", lazy="selectin")
 
 
 class HistoriqueVente(Base):
@@ -150,12 +155,12 @@ class Dette(Base):
     date_creation = Column(DateTime, default=datetime.now)
     date_solde = Column(DateTime, nullable=True)
 
-    client = relationship("Client", back_populates="dettes")
+    client = relationship("Client", back_populates="dettes", lazy="selectin")
     vente = relationship("Vente", back_populates="dette")
     echeances = relationship(
-        "Echeance", back_populates="dette", cascade="all, delete-orphan", order_by="Echeance.numero"
+        "Echeance", back_populates="dette", cascade="all, delete-orphan", order_by="Echeance.numero", lazy="selectin"
     )
-    paiements = relationship("Paiement", back_populates="dette", order_by="Paiement.date")
+    paiements = relationship("Paiement", back_populates="dette", order_by="Paiement.date", lazy="selectin")
 
     @property
     def total_paye(self):
