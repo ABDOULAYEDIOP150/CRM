@@ -299,8 +299,8 @@ def show_dashboard():
 
 def _onglet_ventes(p, df_30j):
     g1, g2 = st.columns(2)
-    with g1.container(border=True):
-        st.markdown("**Ventes et argent encaissé, jour par jour (30 jours)**")
+    with config.carte(g1):
+        st.markdown("**Ventes et encaissements, 30 jours**")
         df = df_30j
         fig = go.Figure()
         fig.add_bar(x=df["Date"], y=df["CA"], name="Ventes", marker_color=config.SECONDARY_BLUE)
@@ -312,7 +312,7 @@ def _onglet_ventes(p, df_30j):
             line=dict(color=config.SUCCESS_GREEN, width=2.5),
         )
         st.plotly_chart(_fig(fig), width="stretch")
-    with g2.container(border=True):
+    with config.carte(g2):
         st.markdown("**Ventes par catégorie**")
         if p["par_categorie"]:
             df = pd.DataFrame(list(p["par_categorie"].items()), columns=["Catégorie", "Montant"])
@@ -320,15 +320,15 @@ def _onglet_ventes(p, df_30j):
         else:
             st.caption("Aucune vente sur la période.")
     g3, g4 = st.columns(2)
-    with g3.container(border=True):
-        st.markdown("**Produits qui rapportent le plus**")
+    with config.carte(g3):
+        st.markdown("**Produits les plus vendus**")
         if p["par_produit"]:
             df = pd.DataFrame(p["par_produit"][:8], columns=["Produit", "Quantité", "Montant"])
             st.plotly_chart(_barres(df, "Montant", "Produit", config.SECONDARY_BLUE), width="stretch")
         else:
             st.caption("Aucune vente sur la période.")
-    with g4.container(border=True):
-        st.markdown("**Comment les clients paient**")
+    with config.carte(g4):
+        st.markdown("**Moyens de paiement**")
         if p["par_mode"]:
             df = pd.DataFrame(list(p["par_mode"].items()), columns=["Moyen", "Montant"])
             st.plotly_chart(_fig(px.pie(df, names="Moyen", values="Montant", hole=0.55)), width="stretch")
@@ -347,8 +347,8 @@ def _onglet_dettes(d, top):
         ]
     )
     g1, g2 = st.columns(2)
-    with g1.container(border=True):
-        st.markdown("**Ancienneté des dettes** (plus c'est vieux, plus c'est risqué)")
+    with config.carte(g1):
+        st.markdown("**Ancienneté des dettes**")
         df = pd.DataFrame(list(tr.items()), columns=["Tranche", "Montant"])
         fig = px.bar(
             df,
@@ -363,13 +363,13 @@ def _onglet_dettes(d, top):
         fig.update_xaxes(title=None)
         fig.update_yaxes(title=None, showticklabels=False)
         st.plotly_chart(_fig(fig), width="stretch")
-    with g2.container(border=True):
+    with config.carte(g2):
         st.markdown("**Qui doit le plus ?**")
         if top:
             df = pd.DataFrame(top, columns=["Client", "Doit"])
             st.plotly_chart(_barres(df, "Doit", "Client", config.WARNING_ORANGE), width="stretch")
         else:
-            st.info("Personne ne vous doit d'argent ")
+            st.info("Aucune dette en cours.")
     config.bouton_page(st, "Gérer les dettes", "Dettes")
 
 
@@ -383,7 +383,7 @@ def _onglet_stock(s, n):
         ]
     )
     g1, g2 = st.columns(2)
-    with g1.container(border=True):
+    with config.carte(g1):
         st.markdown("**À commander**")
         a_commander = s["ruptures"] + s["faibles"]
         if a_commander:
@@ -403,13 +403,11 @@ def _onglet_stock(s, n):
             )
         else:
             st.success("Rien à commander.")
-    with g2.container(border=True):
-        st.markdown("**Où est votre argent immobilisé ?** (stock par catégorie)")
+    with config.carte(g2):
+        st.markdown("**Valeur du stock par catégorie**")
         if s["par_categorie"]:
             df = pd.DataFrame(list(s["par_categorie"].items()), columns=["Catégorie", "Valeur"])
             st.plotly_chart(_barres(df, "Valeur", "Catégorie", config.MUTED), width="stretch")
-    if n["dormant"]:
-        st.caption(f"{n['dormant']} produit(s) ne se vendent pas : voir la page Alertes.")
 
 
 def _onglet_clients(p, nouveaux, top):
@@ -420,8 +418,8 @@ def _onglet_clients(p, nouveaux, top):
             ("Panier moyen", fmt_money(p["panier_moyen"]), config.MUTED, ""),
         ]
     )
-    with st.container(border=True):
-        st.markdown("**Meilleurs clients de la période**")
+    with config.carte():
+        st.markdown("**Meilleurs clients**")
         if top:
             df = pd.DataFrame(top, columns=["Client", "Achats"])
             st.plotly_chart(_barres(df, "Achats", "Client", config.SUCCESS_GREEN), width="stretch")

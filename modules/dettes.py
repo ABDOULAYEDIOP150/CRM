@@ -51,7 +51,6 @@ def show_dettes():
             "Nouvelle dette",
             type="primary",
             width="stretch",
-            help="Dette sans vente : ancienne dette du cahier, argent prêté…",
         ):
             _dialog_nouvelle_dette()
         config.bouton_page(b, "Vente à crédit", "Ventes", width="stretch")
@@ -99,11 +98,11 @@ def _liste(session, params, vue):
             {
                 "Client": d.client.nom,
                 "Téléphone": d.client.telephone,
-                "Objet": d.description or "—",
+                "Objet": d.description or "",
                 "Montant": d.montant,
                 "Versé": d.total_paye,
                 "Reste": d.reste,
-                "Prochain paiement": fmt_date(s["prochaine_date"]) if d.reste else "—",
+                "Prochain paiement": fmt_date(s["prochaine_date"]) if d.reste else "",
                 "Statut": f"{ICONES[s['statut']]} {s['statut']}"
                 + (f" ({s['jours_retard']} j)" if s["jours_retard"] else ""),
             }
@@ -133,7 +132,7 @@ def _detail(session, dette, params):
     c = dette.client
     st.markdown(
         f"### {c.nom} &nbsp; {config.badge(s['statut'], COULEURS[s['statut']])}  \n"
-        f"<small>{c.telephone or '—'} · {dette.description or ''} · dette D-{dette.id:05d} du "
+        f"<small>{c.telephone or ''} · {dette.description or ''} · dette D-{dette.id:05d} du "
         f"{fmt_date(dette.date_creation)}</small>",
         unsafe_allow_html=True,
     )
@@ -154,7 +153,7 @@ def _detail(session, dette, params):
             ),
             (
                 "Prochain paiement",
-                fmt_date(s["prochaine_date"]) if dette.reste else "—",
+                fmt_date(s["prochaine_date"]) if dette.reste else "",
                 config.WARNING_ORANGE,
                 fmt_money(s["prochain_montant"]) if dette.reste else "",
             ),
@@ -242,9 +241,9 @@ def _detail(session, dette, params):
             )
 
     if actif:
-        with st.expander("Autres actions : donner plus de temps, annuler"):
+        with st.expander("Autres actions"):
             with st.form(f"reech_{dette.id}"):
-                st.markdown("**Donner plus de temps** (recalcule l'échéancier sur ce qui reste à payer)")
+                st.markdown("**Rééchelonner**")
                 k1, k2, k3 = st.columns(3)
                 nb = k1.number_input("Nombre de paiements", 1, 36, 2)
                 freq = k2.selectbox("Tous les…", list(config.FREQUENCES), index=2)
@@ -254,7 +253,7 @@ def _detail(session, dette, params):
                     session.commit()
                     config.flash("Nouvel échéancier enregistré.")
                     st.rerun()
-            st.markdown("**Annuler la dette** (erreur de saisie). Les versements reçus restent enregistrés.")
+            st.markdown("**Annuler la dette**")
             if st.button("Annuler cette dette", key=f"annul_{dette.id}"):
                 D.annuler_dette(session, dette)
                 session.commit()
@@ -285,7 +284,7 @@ def _dialog_versement(dette_id):
                 st.rerun()
             return
         s = D.situation_dette(dette)
-        st.markdown(f"**{dette.client.nom}** doit encore **{fmt_money(dette.reste)}**.")
+        st.markdown(f"Reste dû : **{fmt_money(dette.reste)}**")
         with st.form("versement"):
             montant = st.number_input(
                 "Montant reçu (FCFA)",
@@ -309,7 +308,6 @@ def _dialog_versement(dette_id):
 
 @st.dialog("Nouvelle dette (sans vente)", width="large")
 def _dialog_nouvelle_dette():
-    st.caption("Ancienne dette, prêt ou service. Pour une vente à crédit, passez par Nouvelle vente.")
     with get_session() as session:
         clients = session.query(Client).filter(Client.nom != config.CLIENT_PASSAGE).order_by(Client.nom).all()
         with st.form("nouvelle_dette"):
@@ -318,14 +316,12 @@ def _dialog_nouvelle_dette():
             choix = c1.selectbox(
                 "Client existant",
                 [None, *par_id],
-                format_func=lambda i: "— Nouveau client —" if i is None else f"{par_id[i].nom} · {par_id[i].telephone}",
+                format_func=lambda i: "Nouveau client" if i is None else f"{par_id[i].nom} · {par_id[i].telephone}",
             )
             client = par_id.get(choix)
             nom = c2.text_input("…ou nouveau client : nom")
             tel = c2.text_input("Téléphone du nouveau client")
-            description = st.text_input(
-                "Objet de la dette", placeholder="Ex : ancienne dette du cahier, prêt d'argent…"
-            )
+            description = st.text_input("Objet de la dette", placeholder="Ex : ancienne dette")
             m1, m2, m3 = st.columns(3)
             montant = m1.number_input("Montant total dû", min_value=0, step=1000)
             acompte = m2.number_input("Avance versée aujourd'hui", min_value=0, step=500)

@@ -47,7 +47,7 @@ def _formulaire(session, produits):
     cible = st.session_state.pop("produit_cible", None)
     if cible in par_id:
         st.session_state["entree_produit"] = cible
-    with st.container(border=True):
+    with config.carte():
         st.markdown("##### Produit")
         a, b = st.columns([4, 1], vertical_alignment="bottom")
         pid = a.selectbox(
@@ -57,16 +57,15 @@ def _formulaire(session, produits):
             key="entree_produit",
             placeholder="Rechercher un produit (nom ou code)",
             format_func=lambda i: (
-                f"{par_id[i].nom}  ·  {par_id[i].reference}  —  achat {fmt_money(par_id[i].prix_achat)}"
+                f"{par_id[i].nom} ({par_id[i].reference}), achat {fmt_money(par_id[i].prix_achat)}"
                 f" · vente {fmt_money(par_id[i].prix)} · stock {par_id[i].stock or 0} {par_id[i].unite or 'pièce'}"
             ),
             label_visibility="collapsed",
         )
-        if b.button("", icon=":material/add:", width="stretch", help="Nouveau produit (absent de la base)"):
+        if b.button("", icon=":material/add:", width="stretch", help="Nouveau produit"):
             dialog_produit()
         st.session_state["entree_fiche"] = pid
         if pid is None:
-            st.caption("Choisissez un produit pour continuer.")
             return
         p = par_id[pid]
         unite = p.unite or "pièce"
@@ -120,8 +119,7 @@ def _formulaire(session, produits):
             st.error(f"Vous vendriez à perte : {fmt_money(-gain)} perdus par {unite}.")
         elif pv:
             st.success(
-                f"Bénéfice : **{fmt_money(gain)} par {unite}** ({taux_reel:.0%}), "
-                f"**{fmt_money(gain * quantite)}** si tout l'arrivage est vendu."
+                f"Bénéfice : {fmt_money(gain)} par {unite} ({taux_reel:.0%}), {fmt_money(gain * quantite)} sur l'arrivage."
             )
 
         recap = f"{quantite} {unite}(s) de {p.nom} à {fmt_money(pa)} = {fmt_money(pa * quantite)}"
@@ -145,13 +143,13 @@ def _fiche_produit(session):
     p = session.get(Produit, pid) if pid else None
     if p is None:
         return
-    with st.container(border=True):
+    with config.carte():
         unite = p.unite or "pièce"
         st.markdown(f"##### {p.reference} · {p.nom}")
         st.markdown(
             f"En stock : **{p.stock or 0} {unite}**  \n"
             f"Prix d'achat moyen : **{fmt_money(p.prix_achat)}**  \n"
-            f"Prix de vente actuel : **{fmt_money(p.prix) if p.prix else '—'}**"
+            f"Prix de vente actuel : **{fmt_money(p.prix) if p.prix else 'aucun'}**"
         )
         if p.lots:
             st.markdown("**Derniers achats**")

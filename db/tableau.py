@@ -114,7 +114,7 @@ def resume_stock(session, seuil_defaut):
         "nb_produits": len(produits),
         "valeur_achat": sum((p.prix_achat or 0) * max(p.stock or 0, 0) for p in produits),
         "valeur_vente": sum((p.prix or 0) * max(p.stock or 0, 0) for p in produits),
-        "ruptures": [p for p in produits if (p.stock or 0) <= 0],
+        "ruptures": [p for p in produits if (p.stock or 0) <= 0 and p.lots],  # déjà acheté, plus en stock
         "faibles": sorted((p for p in produits if 0 < (p.stock or 0) <= p.seuil(seuil_defaut)), key=lambda p: p.stock),
         "par_categorie": _stock_par_categorie(produits),
     }

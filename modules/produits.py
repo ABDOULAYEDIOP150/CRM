@@ -14,7 +14,7 @@ TYPES_MVT = ["Vente", "Réception", "Import", "Inventaire", "Correction", "Créa
 
 def _etat(p, seuil):
     if (p.stock or 0) <= 0:
-        return "Rupture"
+        return "Rupture" if p.lots else "Jamais acheté"
     return "Faible" if p.stock <= p.seuil(seuil) else "OK"
 
 
@@ -23,7 +23,7 @@ def show_produits():
     with get_session() as session:
         config.entete("Stock", "Quantités, valeur et marges")
         produits = session.query(Produit).order_by(Produit.categorie, Produit.nom).all()
-        ruptures = [p for p in produits if (p.stock or 0) <= 0]
+        ruptures = [p for p in produits if (p.stock or 0) <= 0 and p.lots]  # jamais acheté : pas une rupture
         faibles = [p for p in produits if 0 < (p.stock or 0) <= p.seuil(seuil)]
         valeur_achat = sum((p.prix_achat or 0) * max(p.stock or 0, 0) for p in produits)
         valeur_vente = sum((p.prix or 0) * max(p.stock or 0, 0) for p in produits)
@@ -40,7 +40,7 @@ def show_produits():
                     "Ruptures",
                     len(ruptures),
                     config.DANGER_RED if ruptures else config.MUTED,
-                    ", ".join(p.nom for p in ruptures[:3]),
+                    ", ".join(p.nom for p in ruptures[:2]) + ("…" if len(ruptures) > 2 else ""),
                 ),
                 (
                     "Stock faible",
@@ -69,7 +69,7 @@ def show_produits():
 
 def _etat_stock(session, produits, seuil):
     if not produits:
-        st.info("Aucun produit. Commencez par la Base produits, puis faites une entrée de stock.")
+        st.info("Aucun produit.")
         return
     lignes = []
     for p in produits:
@@ -82,7 +82,7 @@ def _etat_stock(session, produits, seuil):
                 "Stock": f"{p.stock or 0} {p.unite or ''}".strip(),
                 "Prix d'achat moyen": p.prix_achat or 0,
                 "Prix de vente": p.prix or 0,
-                "Marge": f"{taux:.0%}" if p.prix else "—",
+                "Marge": f"{taux:.0%}" if p.prix else "",
                 "Valeur (achat)": (p.prix_achat or 0) * max(p.stock or 0, 0),
                 "État": _etat(p, seuil),
             }
@@ -107,7 +107,7 @@ def _etat_stock(session, produits, seuil):
     st.markdown(f"### {p.reference} · {p.nom}")
     g, d = st.columns([3, 2], gap="large")
     with g:
-        st.markdown("**Arrivages (lots)** : les plus anciens sont vendus en premier")
+        st.markdown("**Arrivages**")
         if p.lots:
             st.dataframe(
                 pd.DataFrame(
@@ -118,7 +118,7 @@ def _etat_stock(session, produits, seuil):
                             "Reste": l.restant,
                             "Prix d'achat": l.prix_achat,
                             "Prix de vente": l.prix_vente,
-                            "Fournisseur": l.fournisseur or "—",
+                            "Fournisseur": l.fournisseur or "",
                             "Note": l.note,
                         }
                         for l in reversed(p.lots)
@@ -132,8 +132,8 @@ def _etat_stock(session, produits, seuil):
             )
         else:
             st.caption("Aucun arrivage.")
-    with d, st.container(border=True):
-        st.markdown("**Changer le prix de vente** (sans nouvel achat)")
+    with d, config.carte():
+        st.markdown("**Prix de vente**")
         nouveau = st.number_input(
             f"Prix de vente d'un(e) {unite}", min_value=0, step=50, value=int(p.prix or 0), key=f"pv_{p.id}"
         )
@@ -149,7 +149,6 @@ def _etat_stock(session, produits, seuil):
 
 
 def _inventaire(session, produits):
-    st.markdown("Saisissez les quantités comptées. Les écarts sont corrigés et enregistrés dans le journal.")
     if not produits:
         return
     df = pd.DataFrame(
@@ -197,7 +196,6 @@ def _inventaire(session, produits):
 
 
 def _mouvements(session, produits):
-    st.markdown("Historique des mouvements de stock.")
     par_id = {p.id: f"{p.reference} · {p.nom}" for p in produits}
     a, b = st.columns([2, 1])
     choix = a.selectbox(

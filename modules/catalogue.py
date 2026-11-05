@@ -76,7 +76,6 @@ def show_catalogue():
             I.modele_excel(produits),
             "base_produits.xlsx",
             width="stretch",
-            help="Toute la base, à modifier dans Excel puis réimporter",
         )
         config.bouton_page(c[4], "Entrée de stock", "Entrees", width="stretch")
 
@@ -89,7 +88,6 @@ def _liste(session, produits, filtre):
     if not produits:
         st.info("Aucun produit ne correspond à la recherche.")
         return
-    seuil = int(get_param("seuil_stock"))
     df = pd.DataFrame(
         [
             {
@@ -109,10 +107,6 @@ def _liste(session, produits, filtre):
     )
     df["Seuil d'alerte"] = df["Seuil d'alerte"].astype("Int64")
     devise = config.DEVISE
-    st.caption(
-        f"{len(df)} produit(s). Double-cliquez sur une case pour la modifier. "
-        f"Stock : quantité comptée en magasin. Seuil vide : {seuil} par défaut."
-    )
     edite = st.data_editor(
         df,
         hide_index=True,
@@ -122,7 +116,7 @@ def _liste(session, produits, filtre):
         disabled=["Marge"],
         column_config={
             "id": None,
-            "Code": st.column_config.TextColumn(width="small", help="Code court et unique (ex. SAB-001)"),
+            "Code": st.column_config.TextColumn(width="small"),
             "Produit": st.column_config.TextColumn(required=True, width="medium"),
             "Catégorie": st.column_config.SelectboxColumn(
                 options=categories(session, tous), required=True, width="medium"
@@ -145,7 +139,6 @@ def _liste(session, produits, filtre):
                 min_value=0,
                 step=1,
                 width="small",
-                help="Tapez la quantité comptée en magasin : l'écart est enregistré comme inventaire (journal).",
             ),  # fmt: skip
             "Seuil d'alerte": st.column_config.NumberColumn("Seuil", min_value=0, step=1, width="small"),
         },
@@ -192,7 +185,7 @@ def _enregistrer(session, df, edite):
         lignes.append(f"**Prix** modifiés : {prix} produit(s)")
     if autres:
         lignes.append(f"Autres informations modifiées : {autres} produit(s)")
-    with st.container(border=True):
+    with config.carte():
         st.markdown("**Modifications à enregistrer**  \n" + "  \n".join(lignes))
         if not st.button("Enregistrer les modifications", type="primary"):
             return
@@ -253,7 +246,6 @@ def _champs_produit(session, p=None, nom_propose=""):
     code = st.text_input(
         "Code",
         value=(p.reference if p else (generer_code(session, nom) if nom.strip() else "")),
-        help="Proposé automatiquement, modifiable (ex. SAB-001)",
     )
     a, b = st.columns(2)
     cats, uns = categories(session), unites(session)
@@ -270,7 +262,7 @@ def _champs_produit(session, p=None, nom_propose=""):
     en_stock = bool(p and (p.stock or 0) > 0)
     pa = d.number_input(
         f"Prix d'achat ({config.DEVISE})", min_value=0, step=50, value=int(p.prix_achat or 0) if p else 0,
-        disabled=en_stock, help=AIDE_PRIX_ACHAT if en_stock else "Sert de prix proposé à la prochaine entrée de stock",
+        disabled=en_stock, help=AIDE_PRIX_ACHAT if en_stock else None,
     )  # fmt: skip
     if pv and pa and pv < pa:
         st.warning(f"Prix de vente inférieur au prix d'achat : perte de {fmt_money(pa - pv)} par {unite or 'pièce'}.")
@@ -328,7 +320,7 @@ def dialog_modifier(produit_id=None):
             list(par_id),
             index=list(par_id).index(produit_id) if produit_id in par_id else None,
             placeholder="Tapez le début du nom ou le code",
-            format_func=lambda i: f"{par_id[i].reference} · {par_id[i].nom} — {fmt_money(par_id[i].prix)}",
+            format_func=lambda i: f"{par_id[i].nom} ({par_id[i].reference}), {fmt_money(par_id[i].prix)}",
         )
         if pid is None:
             return
@@ -361,24 +353,12 @@ def dialog_modifier(produit_id=None):
             config.flash(f"{p.nom} supprimé de la base.")
             st.rerun()
         if utilise:
-            b.caption("Déjà acheté ou vendu : conservé pour l'historique.")
+            b.caption("Déjà utilisé, non supprimable.")
 
 
 # ------------------------------------------------------------------ Import Excel
 def _import(session, produits):
-    st.markdown(
-        "Fichier Excel ou CSV. Seul le nom est obligatoire. Un produit déjà présent "
-        "(même code ou même nom) est mis à jour."
-    )
     st.download_button("Télécharger un modèle vide", I.modele_excel(), "modele_produits.xlsx")
-    with st.expander("Comment remplir le fichier ?"):
-        st.markdown(
-            "- Colonnes reconnues automatiquement : *Nom / Désignation / Article*, *Code / Référence*, *Catégorie / "
-            "Famille*, *Unité*, *Stock / Qté*, *Prix d'achat / PA*, *Prix de vente / PV*, *Seuil*.\n"
-            "- Les montants peuvent s'écrire « 4 600 », « 4600 » ou « 4 600 FCFA ».\n"
-            "- Un produit déjà présent (même **code**, sinon même **nom**) est mis à jour, jamais dupliqué.\n"
-            "- Sans code, un code est créé automatiquement (ex. SAB-001)."
-        )
     fichier = st.file_uploader("Déposez votre fichier Excel ou CSV", type=["xlsx", "xls", "csv"], key="fichier_import")
     if fichier is None:
         return
@@ -388,7 +368,6 @@ def _import(session, produits):
     except Exception as e:  # fichier illisible ou colonne du nom absente
         st.error(f"Impossible de lire ce fichier : {e}")
         return
-    st.caption("Colonnes reconnues : " + ", ".join(f"{I.ENTETES_MODELE[k]} ← « {v} »" for k, v in cols.items()))
     compte = {k: sum(l["action"] == k for l in lignes) for k in (I.NOUVEAU, I.MAJ, I.INCHANGE, I.ERREUR)}
     config.kpis(
         [

@@ -124,7 +124,7 @@ def fmt_money(montant, devise=None):
 
 
 def fmt_date(d):
-    return d.strftime("%d/%m/%Y") if d else "—"
+    return d.strftime("%d/%m/%Y") if d else ""
 
 
 def get_date_range(periode):
@@ -156,6 +156,13 @@ def entete(titre, sous_titre=""):
         ui.barre_haut(titre, sous_titre, b.get("lieu", ""), b.get("alertes", 0), b.get("boutique", "")),
         unsafe_allow_html=True,
     )
+
+
+def carte(parent=None):
+    """Bloc blanc arrondi (style « carte » du CRM). Remplace st.container(border=True) partout."""
+    n = st.session_state.get("_n_carte", 0) + 1
+    st.session_state["_n_carte"] = n
+    return (parent or st).container(key=f"carte_auto_{n}")
 
 
 def kpi(titre, valeur, couleur=SECONDARY_BLUE, detail=""):

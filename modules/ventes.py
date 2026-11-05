@@ -62,9 +62,7 @@ def _catalogue(session):
     st.markdown("##### Produits")
     tous = session.query(Produit).order_by(Produit.nom).all()
     if not tous:
-        st.info(
-            "Aucun produit. Ajoutez ou importez vos produits dans la **Base produits**, puis faites une **Entrée de stock**."
-        )
+        st.info("Aucun produit dans la base.")
         config.bouton_page(st, "Ajouter des produits", "Catalogue")
         return
     par_id = {p.id: p for p in tous}
@@ -78,7 +76,7 @@ def _catalogue(session):
         on_change=_ajouter_depuis_recherche,
         placeholder="Rechercher un produit (nom ou code)",
         format_func=lambda i: (
-            f"{par_id[i].nom}  —  {fmt_money(par_id[i].prix)}  ·  stock {par_id[i].stock} {par_id[i].unite or 'pièce'}"
+            f"{par_id[i].nom}, {fmt_money(par_id[i].prix)}, stock {par_id[i].stock} {par_id[i].unite or 'pièce'}"
         ),
         label_visibility="collapsed",
     )
@@ -92,12 +90,13 @@ def _catalogue(session):
     if len(categories) > 1:
         cat = st.pills("Catégorie", categories, key="cat_vente", label_visibility="collapsed")
     produits = [p for p in tous if cat is None or (p.categorie or "Divers") == cat]
+    produits.sort(key=lambda p: ((p.stock or 0) <= 0, p.nom.lower()))  # disponibles d'abord
     cols = st.columns(3)
     for i, p in enumerate(produits):
         dans_panier = panier.get(p.id, 0)
         dispo = p.stock - dans_panier
         unite = p.unite or "pièce"
-        with cols[i % 3].container(border=True):
+        with config.carte(cols[i % 3]):
             etat = "Rupture de stock" if p.stock <= 0 else f"Stock : {p.stock} {unite}"
             st.markdown(
                 f"<div class='crm-prod'>{p.nom}</div><div class='crm-prix'>{fmt_money(p.prix)}"
@@ -113,7 +112,7 @@ def _catalogue(session):
 # ------------------------------------------------------------------ Ticket
 def _ticket(session):
     panier = _panier()
-    with st.container(border=True):
+    with config.carte():
         # Client
         st.markdown("##### Client")
         clients = session.query(Client).filter(Client.nom != CLIENT_PASSAGE).order_by(Client.nom).all()
@@ -133,14 +132,14 @@ def _ticket(session):
         if client:
             encours = D.encours_client(session, client.id)
             if D.client_en_retard(session, client.id):
-                st.error(f"{client.nom} a une dette **en retard** ({fmt_money(encours)} dû au total).")
+                st.error(f"{client.nom} a une dette en retard ({fmt_money(encours)} dû).")
             elif encours:
                 st.caption(f"Dette en cours : **{fmt_money(encours)}**")
 
         # Lignes du panier
         st.markdown("##### Panier")
         if not panier:
-            st.info("Le panier est vide : cliquez sur **Ajouter** à gauche.")
+            st.info("Panier vide.")
         sous_total = 0
         for pid in list(panier):
             p = session.get(Produit, pid)
@@ -191,9 +190,7 @@ def _ticket(session):
                 if recu > total:
                     st.success(f"Monnaie à rendre : **{fmt_money(recu - total)}**")
                 elif recu < total:
-                    st.warning(
-                        f"Il manque {fmt_money(total - recu)}. Choisissez « À crédit » si le client paie plus tard."
-                    )
+                    st.warning(f"Il manque {fmt_money(total - recu)}.")
         else:
             if client is None:
                 bloquant = "Pour une dette, choisissez le client (ou créez-le avec )."
@@ -205,7 +202,6 @@ def _ticket(session):
                 max_value=max(int(total) - 1, 0),
                 step=500,
                 value=0,
-                help="Ce que le client donne maintenant (0 si rien)",
             )
             mode = x2.selectbox("Moyen de l'avance", config.MODES_PAIEMENT, key="mode_acompte")
             y1, y2 = st.columns(2)
@@ -332,7 +328,6 @@ def _confirmation(session, vente_id):
                 ),
             ]
         )
-        st.info("Faites signer la **reconnaissance de dette** au client et gardez un exemplaire.")
     else:
         st.success(f"Payé comptant ({vente.mode_paiement}) : {fmt_money(vente.total)}")
 

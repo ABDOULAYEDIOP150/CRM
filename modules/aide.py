@@ -74,7 +74,6 @@ GUIDES = [
 
 def show_aide():
     config.entete("Guide rapide", "Utilisation de l'application")
-    st.info("Astuce : le **tableau de bord** est la page d'accueil. Commencez chaque journée par les **alertes**.")
     for i, (titre, etapes) in enumerate(GUIDES):
         with st.expander(titre, expanded=i == 0):
             for n, e in enumerate(etapes, 1):

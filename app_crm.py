@@ -51,6 +51,7 @@ from modules import (
 )
 
 config.setup_page()
+st.session_state["_n_carte"] = 0  # numérotation des cartes de cette page (config.carte)
 
 
 @st.cache_resource

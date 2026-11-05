@@ -27,7 +27,6 @@ def show_ventes_documents():
     reglement = f2.selectbox("Règlement", ["Toutes", "Comptant", "À crédit", "Crédit non soldé"])
     recherche = f3.text_input("Client ou produit", placeholder="Rechercher…")
     if not isinstance(periode, (list, tuple)) or len(periode) != 2:
-        st.caption("Choisissez une date de début et une date de fin.")
         return
     debut, fin = datetime.combine(periode[0], time.min), datetime.combine(periode[1], time.max)
 
@@ -72,7 +71,6 @@ def show_ventes_documents():
                 for v in ventes
             ]
         )
-        st.caption("Cliquez sur une vente pour obtenir ses documents.")
         event = st.dataframe(
             df,
             hide_index=True,

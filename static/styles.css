@@ -178,3 +178,62 @@ header[data-testid="stHeader"] { background: transparent; }
 .legende b { font-weight: 700; color: #0f172a; }
 
 .pastille.sigle { color: var(--c); font-weight: 800; font-size: .78rem; letter-spacing: .02em; }
+
+/* ======================================================================
+   Style « cartes » appliqué à toutes les pages
+   ====================================================================== */
+/* Cartes blanches (config.carte et blocs du tableau de bord) */
+div[class*="st-key-carte_auto_"] { background: #fff; border: 1px solid #e8edf5; border-radius: 16px;
+    padding: 1rem 1.1rem; box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 6px 20px rgba(15,23,42,.05); }
+
+/* Cartes KPI des pages (config.kpis) : même famille que celles du tableau de bord */
+.crm-kpi { background: color-mix(in srgb, var(--c) 8%, white); border: 1px solid color-mix(in srgb, var(--c) 20%, white);
+    border-top: 1px solid color-mix(in srgb, var(--c) 20%, white); border-radius: 16px; padding: 1rem 1.1rem;
+    position: relative; overflow: hidden; }
+.crm-kpi::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 4px; background: var(--c); }
+.crm-kpi-t { color: #475569; text-transform: none; letter-spacing: 0; font-size: .86rem; font-weight: 600; }
+.crm-kpi-v { font-size: clamp(1.15rem, 1.6vw, 1.55rem); font-weight: 800; color: #0f172a; }
+.crm-kpi-det { color: #64748b; }
+
+/* Tableaux */
+[data-testid="stDataFrame"], [data-testid="stTable"] { background: #fff; border: 1px solid #e8edf5; border-radius: 14px;
+    overflow: hidden; box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 6px 20px rgba(15,23,42,.04); }
+
+/* Onglets en pastilles */
+[data-testid="stTabs"] [role="tablist"] { gap: .35rem; background: #fff; border: 1px solid #e8edf5; border-radius: 12px;
+    padding: .3rem; width: fit-content; max-width: 100%; overflow-x: auto; }
+[data-testid="stTabs"] [role="tab"] { border-radius: 9px; padding: .35rem .9rem; margin: 0; height: auto; }
+[data-testid="stTabs"] [role="tab"][aria-selected="true"] { background: #1e3a8a; }
+[data-testid="stTabs"] [role="tab"][aria-selected="true"] p { color: #fff; font-weight: 600; }
+[data-baseweb="tab-highlight"], [data-baseweb="tab-border"] { display: none; }
+[data-testid="stTabPanel"] { padding-top: 1rem; }
+
+/* Champs de saisie et listes */
+[data-testid="stTextInputRootElement"], [data-baseweb="select"] > div, [data-testid="stNumberInputContainer"],
+[data-testid="stDateInputField"], [data-baseweb="textarea"] { border-radius: 10px !important; border-color: #e2e8f0 !important;
+    background: #fff; }
+
+/* Menus dépliants */
+[data-testid="stExpander"] details { background: #fff; border: 1px solid #e8edf5; border-radius: 14px; }
+[data-testid="stExpander"] summary { font-weight: 600; }
+
+/* Boutons secondaires et messages */
+.stButton > button[kind="secondary"], .stDownloadButton > button { background: #fff; border: 1px solid #dbe3ee; }
+.stButton > button[kind="secondary"]:hover, .stDownloadButton > button:hover { border-color: #2563eb; color: #1d4ed8; }
+[data-testid="stAlert"] > div { border-radius: 12px; }
+
+/* Titres de section dans les pages */
+.stMainBlockContainer h3, .stMainBlockContainer h4, .stMainBlockContainer h5 { color: #0f172a; font-weight: 700; }
+
+/* Formulaires : même allure que les cartes */
+[data-testid="stForm"] { background: #fff; border: 1px solid #e8edf5; border-radius: 16px; padding: 1.1rem 1.2rem;
+    box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 6px 20px rgba(15,23,42,.05); }
+
+/* Filtres (boutons segmentés) : même allure que les onglets */
+[data-testid="stButtonGroup"] > div { background: #fff; border: 1px solid #e8edf5; border-radius: 12px; padding: .3rem;
+    gap: .35rem; width: fit-content; max-width: 100%; }
+[data-testid="stButtonGroup"] button { border: none !important; border-radius: 9px !important; background: transparent; }
+[data-testid="stButtonGroup"] button[kind$="Active"], [data-testid="stButtonGroup"] button[aria-checked="true"] {
+    background: #1e3a8a !important; color: #fff !important; }
+[data-testid="stButtonGroup"] button[kind$="Active"] p, [data-testid="stButtonGroup"] button[aria-checked="true"] p {
+    color: #fff !important; font-weight: 600; }

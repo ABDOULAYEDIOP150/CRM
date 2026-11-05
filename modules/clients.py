@@ -31,7 +31,7 @@ def show_clients():
             r = recherche.lower()
             clients = [c for c in clients if r in f"{c.nom} {c.telephone} {c.adresse or ''}".lower()]
         if not clients:
-            st.info("Aucun client. Cliquez sur **Nouveau client**.")
+            st.info("Aucun client.")
             return
 
         lignes = []
@@ -51,7 +51,7 @@ def show_clients():
                 }
             )
         df = pd.DataFrame(lignes)
-        st.caption(f"{len(df)} client(s) · Cliquez sur un client pour ouvrir sa fiche.")
+        st.caption(f"{len(df)} client(s)")
         event = st.dataframe(
             df,
             hide_index=True,
@@ -73,7 +73,7 @@ def _fiche(session, c):
     params = get_params()
     encours = D.encours_client(session, c.id)
     st.markdown(
-        f"### {c.nom}  \n<small>{c.telephone or '—'} · {c.adresse or ''} · client depuis le "
+        f"### {c.nom}  \n<small>{c.telephone or ''} · {c.adresse or ''} · client depuis le "
         f"{fmt_date(c.date_creation)}</small>",
         unsafe_allow_html=True,
     )
@@ -194,7 +194,6 @@ def _dialog_client(client_id):
                 min_value=0,
                 step=5000,
                 value=int(c.plafond_credit or 0) if c else 0,
-                help="Montant maximum que ce client peut devoir",
             )
             notes = st.text_area("Notes", value=(c.notes or "") if c else "", height=70)
             if st.form_submit_button("Enregistrer", type="primary", width="stretch"):

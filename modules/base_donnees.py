@@ -50,23 +50,21 @@ def show_base():
     type_db, ou, fichier = _description(url)
     config.entete("Base de données", "Stockage, sauvegarde et export")
 
-    st.markdown(f"**Type :** {type_db}  \n**Emplacement :** `{ou}`")
-    if fichier is not None:
-        st.info(
-            "Les données sont enregistrées dans le fichier ci-dessus, sur l'ordinateur qui fait tourner l'application. "
-            "Faites une **sauvegarde régulière** (bouton plus bas).  \n"
-            "Sur un hébergement en ligne comme Streamlit Cloud, ce fichier est **effacé à chaque redémarrage** : "
-            "il faut alors une base PostgreSQL (voir en bas de page)."
-        )
-    else:
-        st.success("Base PostgreSQL en ligne : les données sont conservées même si l'application redémarre.")
     ms = _temps_de_reponse(engine)
-    if ms is not None:
-        conseil = (
-            "très bon" if ms < 30 else "correct" if ms < 80 else
-            "lent : l'application et la base sont loin l'une de l'autre (voir l'aide ci-dessous)"
-        )  # fmt: skip
-        st.caption(f"Temps de réponse de la base : **{ms:.0f} ms** par aller-retour · {conseil}")
+    etat = "Fichier local : faites des sauvegardes régulières" if fichier is not None else "En ligne"
+    config.kpis(
+        [
+            ("Type", type_db, config.SECONDARY_BLUE, etat),
+            ("Emplacement", ou.replace("serveur ", ""), config.MUTED, ""),
+            (
+                "Temps de réponse",
+                f"{ms:.0f} ms" if ms is not None else "",
+                config.SUCCESS_GREEN if ms is not None and ms < 80 else config.WARNING_ORANGE,
+                ("très bon" if ms < 30 else "correct" if ms < 80 else "lent") if ms is not None else "",
+            ),
+        ]
+    )
+    st.write("")
 
     with get_session() as s:
         comptes = {}
@@ -83,6 +81,7 @@ def show_base():
                 comptes[noms[table.name]] = s.execute(select(func.count()).select_from(table)).scalar()
     config.kpis([(k, v, config.SECONDARY_BLUE, "") for k, v in comptes.items()])
 
+    st.write("")
     st.markdown("#### Sauvegarde")
     c1, c2 = st.columns(2)
     # L'export lit toutes les tables : on ne le prépare que sur demande (sinon la page est lente en ligne).
