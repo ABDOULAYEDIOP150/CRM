@@ -52,10 +52,8 @@ def show_produits():
         )
         st.write("")
         a, b, c = st.columns([1.4, 1.4, 3], vertical_alignment="bottom")
-        if a.button("📥 Entrée de stock", type="primary", use_container_width=True):
-            config.aller_a("Entrees")
-        if b.button("📚 Catalogue produits", use_container_width=True):
-            config.aller_a("Catalogue")
+        config.bouton_page(a, "📥 Entrée de stock", "Entrees", type="primary", use_container_width=True)
+        config.bouton_page(b, "📚 Catalogue produits", "Catalogue", use_container_width=True)
         filtre = c.text_input("Filtrer", placeholder="🔎  Code, nom ou catégorie…", label_visibility="collapsed")
         if filtre:
             f = filtre.lower()

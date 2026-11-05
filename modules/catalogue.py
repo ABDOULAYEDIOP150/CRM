@@ -30,8 +30,7 @@ def show_catalogue():
         a, b, c = st.columns([1.2, 1.4, 3], vertical_alignment="bottom")
         if a.button("➕ Nouveau produit", type="primary", use_container_width=True):
             dialog_produit()
-        if b.button("📥 Entrée de stock", use_container_width=True):
-            config.aller_a("Entrees")
+        config.bouton_page(b, "📥 Entrée de stock", "Entrees", use_container_width=True)
         filtre = c.text_input("Filtrer", placeholder="🔎  Code, nom ou catégorie…", label_visibility="collapsed")
         t1, t2 = st.tabs(["📋 Liste des produits", "📊 Importer depuis Excel"])
         with t1:

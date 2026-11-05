@@ -54,8 +54,7 @@ def show_dettes():
             help="Dette sans vente : ancienne dette du cahier, argent prêté…",
         ):
             _dialog_nouvelle_dette()
-        if b.button("🛒 Vente à crédit", use_container_width=True):
-            config.aller_a("Ventes")
+        config.bouton_page(b, "🛒 Vente à crédit", "Ventes", use_container_width=True)
 
         vue = st.segmented_control("Vue", VUES, default=VUES[0], key="vue_dettes", label_visibility="collapsed")
         vue = vue or VUES[0]

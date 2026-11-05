@@ -139,11 +139,14 @@ with st.sidebar:
                 texte += f"  · {compte[A.CRITIQUE] + compte[A.ATTENTION]}"
             if cle == "Dettes" and compte["dette_retard"]:
                 texte += f"  · 🔴 {compte['dette_retard']}"
-            if st.button(
-                texte, key=f"menu_{cle}", use_container_width=True, type="primary" if cle == page else "secondary"
-            ):
-                st.session_state["page"] = cle
-                st.rerun()
+            st.button(  # on_click : la page change avant la relance, sans 2e chargement
+                texte,
+                key=f"menu_{cle}",
+                use_container_width=True,
+                type="primary" if cle == page else "secondary",
+                on_click=config.aller_vers,
+                args=(cle,),
+            )
     st.divider()
     auth.bouton_deconnexion()
 

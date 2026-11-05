@@ -30,10 +30,9 @@ def ligne_alerte(a, params, cle):
     if a.montant:
         milieu.markdown(f"**{fmt_money(a.montant)}**")
     b1, b2 = droite.columns(2)
-    if a.page and b1.button(a.action, key=f"act_{cle}", use_container_width=True):
-        if a.produit_id:
-            st.session_state["produit_cible"] = a.produit_id
-        config.aller_a(a.page, **a.etat)
+    if a.page:
+        etat = {**a.etat, **({"produit_cible": a.produit_id} if a.produit_id else {})}
+        config.bouton_page(b1, a.action, a.page, etat=etat, key=f"act_{cle}", use_container_width=True)
     if a.dette is not None:
         s = D.situation_dette(a.dette)
         msg = D.message_relance(

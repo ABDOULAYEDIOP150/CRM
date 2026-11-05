@@ -171,3 +171,13 @@ def test_entree_de_stock():
         assert sable.stock == stock_avant + 10 and sable.prix == 19000
         assert s.query(LotStock).count() == lots_avant + 1
         assert sable.lots[-1].prix_achat == 14000
+
+
+def test_menu_change_de_page_en_un_seul_chargement():
+    """Le menu utilise un callback : la nouvelle page s'affiche dès la relance du clic, sans 2e chargement."""
+    at = _app()
+    at.run()
+    at.button(key="menu_Dettes").click().run()
+    assert not at.exception, at.exception
+    assert at.session_state["page"] == "Dettes"
+    assert at.button(key="menu_Dettes").proto.type == "primary"  # bouton actif = page affichée

@@ -93,8 +93,9 @@ def _fiche(session, c):
     )
     st.write("")
     b = st.columns(4)
-    if b[0].button("🛒 Lui vendre", type="primary", use_container_width=True):
-        config.aller_a("Ventes", vente_client=c.id)
+    config.bouton_page(
+        b[0], "🛒 Lui vendre", "Ventes", etat={"vente_client": c.id}, type="primary", use_container_width=True
+    )
     if b[1].button("✏️ Modifier", use_container_width=True):
         _dialog_client(c.id)
     b[2].download_button(
@@ -104,9 +105,12 @@ def _fiche(session, c):
         "application/pdf",
         use_container_width=True,
     )
-    if encours and b[3].button("💳 Voir ses dettes", use_container_width=True):
+    if encours:
         actives = [d for d in c.dettes if d.statut == "en_cours"]
-        config.aller_a("Dettes", dette_ouverte=actives[0].id if actives else None)
+        ouverte = actives[0].id if actives else None
+        config.bouton_page(
+            b[3], "💳 Voir ses dettes", "Dettes", etat={"dette_ouverte": ouverte}, use_container_width=True
+        )
 
     t1, t2, t3 = st.tabs(["Achats", "Dettes", "Versements"])
     with t1:

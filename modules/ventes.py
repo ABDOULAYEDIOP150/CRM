@@ -65,8 +65,7 @@ def _catalogue(session):
     tous = session.query(Produit).order_by(Produit.nom).all()
     if not tous:
         st.info("Aucun produit. Ajoutez vos produits dans le **Catalogue**, puis faites une **Entrée de stock**.")
-        if st.button("📦 Ajouter des produits"):
-            config.aller_a("Catalogue")
+        config.bouton_page(st, "📦 Ajouter des produits", "Catalogue")
         return
     par_id = {p.id: p for p in tous}
 
@@ -366,9 +365,17 @@ def _confirmation(session, vente_id):
             )
     st.divider()
     b1, b2, _ = st.columns([1, 1, 2])
-    if b1.button("🛒 Nouvelle vente", type="primary", use_container_width=True):
-        st.session_state.pop("derniere_vente")
-        st.rerun()
-    if d and b2.button("💳 Voir la dette", use_container_width=True):
-        st.session_state.pop("derniere_vente")
-        config.aller_a("Dettes", dette_ouverte=d.id)
+    b1.button(  # callback : un seul chargement
+        "🛒 Nouvelle vente",
+        type="primary",
+        use_container_width=True,
+        on_click=lambda: st.session_state.pop("derniere_vente", None),
+    )
+    if d:
+        config.bouton_page(
+            b2,
+            "💳 Voir la dette",
+            "Dettes",
+            etat={"dette_ouverte": d.id, "derniere_vente": None},
+            use_container_width=True,
+        )

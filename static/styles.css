@@ -61,3 +61,11 @@ section[data-testid="stSidebar"] .stButton > button[kind="primary"] { background
 .crm-shop { color: #94a3b8 !important; font-size: .85rem; margin-bottom: 1rem; }
 .crm-menu-title { color: #64748b !important; font-size: .7rem; text-transform: uppercase; letter-spacing: .08em;
     margin: .9rem 0 .2rem .75rem; font-weight: 700; }
+
+/* Pas de voile blanc pendant le recalcul : Streamlit estompe la page à chaque clic.
+   On garde l'affichage net ; seul l'indicateur en haut à droite montre que ça charge. */
+[data-stale="true"], .stale-element, .element-container[data-stale="true"] {
+  opacity: 1 !important;
+  filter: none !important;
+  transition: none !important;
+}

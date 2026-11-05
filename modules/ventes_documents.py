@@ -109,8 +109,9 @@ def show_ventes_documents():
                     "application/pdf",
                     use_container_width=True,
                 )
-                if b[2].button("💳 Ouvrir la dette", use_container_width=True):
-                    config.aller_a("Dettes", dette_ouverte=v.dette.id)
+                config.bouton_page(
+                    b[2], "💳 Ouvrir la dette", "Dettes", etat={"dette_ouverte": v.dette.id}, use_container_width=True
+                )
                 for p in v.dette.paiements:
                     st.download_button(
                         f"🧾 Reçu R-{p.id:05d} · {fmt_money(p.montant)} · {p.date.strftime('%d/%m/%Y')}",

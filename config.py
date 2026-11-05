@@ -184,6 +184,20 @@ def flash(message):
     st.session_state["flash"] = message
 
 
+def aller_vers(page, etat=None):
+    """Callback de bouton (on_click) : change de page AVANT la relance du script.
+
+    Contrairement à aller_a, il n'y a pas de deuxième relance (st.rerun) : un clic = un seul chargement.
+    """
+    st.session_state["page"] = page
+    st.session_state.update(etat or {})
+
+
+def bouton_page(conteneur, label, page, etat=None, **kwargs):
+    """Bouton qui ouvre une page en un seul chargement."""
+    return conteneur.button(label, on_click=aller_vers, args=(page, etat), **kwargs)
+
+
 def aller_a(page, **etat):
     """Change de page (menu latéral) en passant éventuellement des valeurs."""
     st.session_state["page"] = page

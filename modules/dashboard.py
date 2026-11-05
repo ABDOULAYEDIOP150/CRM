@@ -76,14 +76,10 @@ def show_dashboard():
             f"{params['boutique_nom']} · {JOURS[aujourd.weekday()]} {aujourd.day} {MOIS[aujourd.month - 1]} {aujourd.year}",
         )
         b = st.columns(4)
-        if b[0].button("🛒 Nouvelle vente", type="primary", use_container_width=True):
-            config.aller_a("Ventes")
-        if b[1].button("💰 Encaisser une dette", use_container_width=True):
-            config.aller_a("Dettes")
-        if b[2].button("📦 Ajouter du stock", use_container_width=True):
-            config.aller_a("Entrees")
-        if b[3].button(f"🔔 Alertes ({n[A.CRITIQUE] + n[A.ATTENTION]})", use_container_width=True):
-            config.aller_a("Alertes")
+        config.bouton_page(b[0], "🛒 Nouvelle vente", "Ventes", type="primary", use_container_width=True)
+        config.bouton_page(b[1], "💰 Encaisser une dette", "Dettes", use_container_width=True)
+        config.bouton_page(b[2], "📦 Ajouter du stock", "Entrees", use_container_width=True)
+        config.bouton_page(b[3], f"🔔 Alertes ({n[A.CRITIQUE] + n[A.ATTENTION]})", "Alertes", use_container_width=True)
 
         # ---------- Alertes urgentes ----------
         urgentes = [a for a in alertes if a.niveau != A.INFO]
@@ -100,8 +96,9 @@ def show_dashboard():
                 for i, a in enumerate(urgentes[:5]):
                     ligne_alerte(a, params, f"dash_{i}")
                 if len(urgentes) > 5:
-                    if st.button(f"Voir toutes les alertes ({len(urgentes)}) →", key="toutes_alertes"):
-                        config.aller_a("Alertes")
+                    config.bouton_page(
+                        st, f"Voir toutes les alertes ({len(urgentes)}) →", "Alertes", key="toutes_alertes"
+                    )
         else:
             st.success("✅ Aucune alerte urgente : pas de retard de paiement, pas de rupture de stock.")
 
@@ -251,8 +248,7 @@ def _onglet_dettes(session, d):
             st.plotly_chart(_barres(df, "Doit", "Client", config.WARNING_ORANGE), use_container_width=True)
         else:
             st.info("Personne ne vous doit d'argent 👍")
-    if st.button("💳 Gérer les dettes →"):
-        config.aller_a("Dettes")
+    config.bouton_page(st, "💳 Gérer les dettes →", "Dettes")
 
 
 def _onglet_stock(s, n):
