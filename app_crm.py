@@ -45,6 +45,7 @@ from modules import (
     entrees,
     parametres,
     produits,
+    ui,
     ventes,
     ventes_documents,
 )
@@ -125,11 +126,14 @@ st.session_state["page"] = page
 
 with get_session() as s:
     compte = A.compter(A.calculer_alertes(s, params))
+st.session_state["_barre"] = {  # pour la barre du haut de chaque page (config.entete)
+    "lieu": params.get("boutique_adresse", ""),
+    "alertes": compte[A.CRITIQUE] + compte[A.ATTENTION],
+    "boutique": params["boutique_nom"],
+}
 
 with st.sidebar:
-    st.markdown(
-        f"<p class='crm-logo'>💼 CRM Pro</p><p class='crm-shop'>{params['boutique_nom']}</p>", unsafe_allow_html=True
-    )
+    st.markdown(ui.logo_menu(params["boutique_nom"]), unsafe_allow_html=True)
     for section, items in MENU:
         if section:
             st.markdown(f"<p class='crm-menu-title'>{section}</p>", unsafe_allow_html=True)
@@ -147,7 +151,7 @@ with st.sidebar:
                 on_click=config.aller_vers,
                 args=(cle,),
             )
-    st.divider()
+    st.markdown(ui.pied_menu(), unsafe_allow_html=True)
     auth.bouton_deconnexion()
 
 if "flash" in st.session_state:

@@ -69,3 +69,110 @@ section[data-testid="stSidebar"] .stButton > button[kind="primary"] { background
   filter: none !important;
   transition: none !important;
 }
+
+/* ======================================================================
+   Nouveau design (tableau de bord type « Quincaillerie Sénégal »)
+   ====================================================================== */
+.stApp { background: #f3f6fb; }
+.block-container { padding-top: 1.6rem; }
+
+/* Barre du haut */
+.haut { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap;
+    background: #fff; border: 1px solid #e8edf5; border-radius: 16px; padding: .85rem 1.2rem; margin-bottom: 1rem;
+    box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 6px 20px rgba(15,23,42,.05); }
+.haut-titre h1 { font-size: 1.45rem; font-weight: 800; color: #0f172a; margin: 0; padding: 0; line-height: 1.2; }
+.haut-titre p { color: #64748b; margin: .15rem 0 0; font-size: .9rem; }
+.haut-droite { display: flex; align-items: center; gap: 1.2rem; color: #1e293b; }
+.haut-lieu { display: inline-flex; align-items: center; gap: .3rem; font-size: .9rem; color: #334155; }
+.haut-lieu svg { fill: #1e3a8a; }
+.haut-cloche { position: relative; display: inline-flex; color: #1e3a8a; padding: 0 .9rem;
+    border-left: 1px solid #e2e8f0; border-right: 1px solid #e2e8f0; }
+.cloche-nb { position: absolute; top: -7px; right: .45rem; background: #ef4444; color: #fff; font-size: .68rem;
+    font-weight: 700; border-radius: 999px; min-width: 18px; height: 18px; display: grid; place-items: center;
+    padding: 0 4px; border: 2px solid #fff; }
+.haut-user { display: inline-flex; align-items: center; gap: .55rem; font-weight: 600; font-size: .92rem; }
+.haut-user small { display: block; color: #64748b; font-weight: 500; font-size: .78rem; }
+
+/* Cartes KPI colorées */
+.kpi2 { min-height: 128px; display: flex; gap: .9rem; align-items: flex-start; height: 100%; border-radius: 16px; padding: 1.05rem 1.1rem;
+    background: color-mix(in srgb, var(--c) 9%, white); border: 1px solid color-mix(in srgb, var(--c) 22%, white); }
+.kpi2-ico { flex: 0 0 auto; width: 48px; height: 48px; border-radius: 14px; display: grid; place-items: center;
+    background: var(--c); box-shadow: 0 6px 14px color-mix(in srgb, var(--c) 35%, transparent); }
+.kpi2-corps { min-width: 0; }
+.kpi2-v { font-size: clamp(1.15rem, 1.7vw, 1.65rem); font-weight: 800; color: #0f172a; line-height: 1.15;
+    overflow-wrap: anywhere; }
+.kpi2-v small { font-size: .62em; font-weight: 700; color: var(--c); }
+.kpi2-t { color: #475569; font-size: .88rem; margin-top: .15rem; font-weight: 500; }
+.kpi2-pied { margin-top: .45rem; display: flex; gap: .45rem; align-items: center; flex-wrap: wrap; }
+.kpi2-var { font-size: .78rem; font-weight: 700; padding: 1px 8px; border-radius: 999px; }
+.kpi2-var.up { color: #15803d; background: #dcfce7; }
+.kpi2-var.down { color: #b91c1c; background: #fee2e2; }
+.kpi2-det { font-size: .78rem; color: #64748b; }
+
+/* Bande « Aujourd'hui » */
+.bande-jour { display: flex; flex-wrap: wrap; gap: .4rem 1.4rem; align-items: center; margin: .9rem 0 .3rem;
+    padding: .6rem 1rem; background: #fff; border: 1px dashed #cbd5e1; border-radius: 12px; font-size: .9rem;
+    color: #334155; }
+.bande-jour b { color: #1e3a8a; }
+
+/* Blocs blancs (st.container(key="carte_…")) */
+div[class*="st-key-carte_"] { background: #fff; border: 1px solid #e8edf5; border-radius: 16px;
+    padding: 1rem 1.1rem .8rem; height: 100%;
+    box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 6px 20px rgba(15,23,42,.05); }
+.carte-titre { display: flex; align-items: center; gap: .5rem; font-weight: 700; font-size: 1.02rem;
+    color: #0f172a; margin-bottom: .55rem; }
+.section-titre { font-weight: 800; font-size: 1.15rem; color: #0f172a; margin: 1.4rem 0 .4rem; }
+
+/* Listes (top produits, clients récents, alertes) */
+.liste-ligne { display: flex; align-items: center; gap: .7rem; padding: .5rem 0; border-bottom: 1px solid #f1f5f9; }
+.liste-ligne:last-child { border-bottom: none; }
+.pastille, .avatar { flex: 0 0 auto; width: 38px; height: 38px; border-radius: 12px; display: grid;
+    place-items: center; font-size: 1.1rem; background: color-mix(in srgb, var(--c) 14%, white); }
+.avatar { border-radius: 999px; color: var(--c); font-weight: 800; font-size: .82rem; }
+.liste-nom { flex: 1; min-width: 0; font-weight: 600; font-size: .9rem; color: #0f172a; overflow: hidden;
+    text-overflow: ellipsis; white-space: nowrap; }
+.liste-nom small { display: block; color: #64748b; font-weight: 500; font-size: .76rem; white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; }
+.liste-val { font-weight: 700; font-size: .86rem; color: #334155; white-space: nowrap; }
+.liste-val small { color: #64748b; font-weight: 500; }
+.liste-val.bleu { color: #1d4ed8; }
+
+/* Barres de progression */
+.barre { margin: .35rem 0 .75rem; }
+.barre-haut { display: flex; justify-content: space-between; font-size: .88rem; color: #334155; margin-bottom: .3rem; }
+.barre-fond { height: 10px; background: #eef2f7; border-radius: 999px; overflow: hidden; }
+.barre-plein { height: 100%; border-radius: 999px; background: var(--c); }
+
+/* Boutons */
+.stButton > button, .stDownloadButton > button { border-radius: 10px; font-weight: 600; }
+.stButton > button[kind="tertiary"] { color: #2563eb; padding-left: 0; }
+
+/* Menu latéral : logo, liens, pied */
+section[data-testid="stSidebar"] { background: linear-gradient(180deg, #0b1b45 0%, #10265e 70%, #0b1b45 100%); }
+.menu-logo { display: flex; align-items: center; gap: .7rem; padding: .2rem 0 1rem; margin-bottom: .4rem;
+    border-bottom: 1px solid rgba(255,255,255,.1); }
+.menu-nom { color: #fff !important; font-weight: 800; font-size: 1.12rem; line-height: 1.15; }
+.menu-badge { display: inline-block; margin-top: .25rem; background: #f59e0b; color: #0b1b45 !important;
+    font-weight: 800; font-size: .72rem; letter-spacing: .08em; padding: 1px 8px; border-radius: 6px; }
+section[data-testid="stSidebar"] .stButton > button { border-radius: 10px; font-weight: 500; }
+section[data-testid="stSidebar"] .stButton > button[kind="primary"] {
+    background: #2563eb; box-shadow: 0 6px 16px rgba(37,99,235,.35); font-weight: 600; }
+.menu-pied { text-align: center; margin-top: 1.2rem; padding: 1rem .5rem; border-radius: 14px;
+    background: rgba(255,255,255,.06); }
+.menu-pied p { color: #cbd5e1 !important; font-size: .82rem; font-style: italic; margin: .5rem 0 0; }
+
+/* Téléphone : la barre du haut se replie */
+@media (max-width: 640px) {
+    .haut-droite { gap: .7rem; }
+    .haut-lieu, .haut-user > span:last-child { display: none; }
+}
+
+/* Bande blanche de Streamlit en haut : transparente */
+header[data-testid="stHeader"] { background: transparent; }
+
+/* Légende de l'anneau */
+.legende { margin-bottom: .5rem; display: grid; grid-template-columns: 1fr 1fr; gap: .35rem 1rem; font-size: .84rem; color: #334155; }
+.legende div { display: flex; align-items: center; gap: .45rem; min-width: 0; }
+.legende i { flex: 0 0 auto; width: 10px; height: 10px; border-radius: 999px; background: var(--c); }
+.legende span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.legende b { font-weight: 700; color: #0f172a; }

@@ -1,6 +1,6 @@
 """Tableau de bord : la journée, les alertes urgentes, puis ventes / dettes / stock / clients en onglets."""
 
-from datetime import date, timedelta
+from datetime import date
 
 import pandas as pd
 import plotly.express as px
@@ -12,9 +12,9 @@ from config import fmt_money
 from db import alertes as A
 from db import dettes as D
 from db import tableau as T
-from db.models import get_session
+from db.models import Produit, get_session
 from db.utils import get_evolution_ca, get_params
-from modules.alertes import ligne_alerte
+from modules import ui
 
 PERIODES = ["Cette semaine", "Ce mois", "30 derniers jours", "Cette année"]
 JOURS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
@@ -62,6 +62,75 @@ def _barres(df, x, y, couleur, h=300, fmt_x=True):
     return _fig(fig, h)
 
 
+def _graphe_evolution(points):
+    """Courbe du chiffre d'affaires avec zone dégradée ; étiquettes sur les points s'il y en a peu."""
+    x = [e for e, _ in points]
+    y = [v for _, v in points]
+    peu = len(points) <= 12
+    fig = go.Figure(
+        go.Scatter(
+            x=x,
+            y=y,
+            mode="lines+markers+text" if peu else "lines+markers",
+            text=[_court(v) for v in y[:-1]] + [""] if peu else None,  # le dernier a sa bulle
+            textposition="top center",
+            textfont=dict(size=12, color="#0f172a"),
+            line=dict(color=ui.BLEU, width=3, shape="spline", smoothing=0.35),
+            marker=dict(size=8 if peu else 5, color=ui.BLEU, line=dict(color="#fff", width=2)),
+            fill="tozeroy",
+            fillgradient=dict(type="vertical", colorscale=[[0, "rgba(37,99,235,0.02)"], [1, "rgba(37,99,235,0.28)"]]),
+            hovertemplate="%{x}<br><b>%{y:,.0f} " + config.DEVISE + "</b><extra></extra>",
+            cliponaxis=False,
+        )
+    )
+    if y and y[-1] > 0:  # bulle sur le dernier point
+        fig.add_annotation(
+            x=x[-1], y=y[-1], text=f"<b>{_court(y[-1])}</b>", showarrow=False, yshift=22,
+            bgcolor="#1e3a8a", font=dict(color="#fff", size=12), borderpad=5,
+        )  # fmt: skip
+    fig.update_yaxes(tickformat="~s", gridcolor="#eef1f6", zeroline=False, rangemode="tozero", title=None)
+    fig.update_xaxes(showgrid=False, title=None, tickfont=dict(color="#64748b"))
+    _fig(fig, 300)
+    fig.update_layout(showlegend=False, separators=", ", hoverlabel=dict(bgcolor="#fff"))
+    return fig
+
+
+def _court(v):
+    """12 480 000 -> 12,5M ; 41 600 -> 41,6k."""
+    for seuil, suffixe in ((1e6, "M"), (1e3, "k")):
+        if abs(v) >= seuil:
+            return f"{v / seuil:.1f}".replace(".", ",").replace(",0", "") + suffixe
+    return f"{v:.0f}"
+
+
+def _anneau(valeurs):
+    """Anneau seul (la légende est en HTML dessous, plus lisible dans une carte étroite)."""
+    fig = go.Figure(
+        go.Pie(
+            labels=list(valeurs),
+            values=list(valeurs.values()),
+            hole=0.62,
+            sort=False,
+            marker=dict(colors=ui.PALETTE[: len(valeurs)], line=dict(color="#fff", width=3)),
+            textinfo="none",
+            hovertemplate="%{label}<br><b>%{value:,.0f} " + config.DEVISE + "</b> (%{percent})<extra></extra>",
+        )
+    )
+    total = sum(valeurs.values())
+    fig.add_annotation(
+        text=f"<b>{_court(total)}</b><br><span style='font-size:11px;color:#64748b'>{config.DEVISE}</span>",
+        showarrow=False, font=dict(size=20, color="#0f172a"),
+    )  # fmt: skip
+    _fig(fig, 210)
+    fig.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), separators=", ")
+    return fig
+
+
+def _carte(cle):
+    """Bloc blanc arrondi (style dans static/styles.css, sélecteur st-key-carte_…)."""
+    return st.container(key=f"carte_{cle}")
+
+
 def show_dashboard():
     params = get_params()
     seuil = int(params["seuil_stock"])
@@ -70,99 +139,122 @@ def show_dashboard():
         alertes = A.calculer_alertes(session, params)
         n = A.compter(alertes)
 
-        # ---------- En-tête + actions rapides ----------
         config.entete(
             "Tableau de bord",
             f"{params['boutique_nom']} · {JOURS[aujourd.weekday()]} {aujourd.day} {MOIS[aujourd.month - 1]} {aujourd.year}",
         )
-        b = st.columns(4)
+
+        # ---------- Actions rapides + période ----------
+        b = st.columns([1, 1, 1, 0.6, 1.1], vertical_alignment="center")
         config.bouton_page(b[0], "🛒 Nouvelle vente", "Ventes", type="primary", use_container_width=True)
-        config.bouton_page(b[1], "💰 Encaisser une dette", "Dettes", use_container_width=True)
-        config.bouton_page(b[2], "📦 Ajouter du stock", "Entrees", use_container_width=True)
-        config.bouton_page(b[3], f"🔔 Alertes ({n[A.CRITIQUE] + n[A.ATTENTION]})", "Alertes", use_container_width=True)
-
-        # ---------- Alertes urgentes ----------
-        urgentes = [a for a in alertes if a.niveau != A.INFO]
-        if urgentes:
-            morceaux = [
-                f"{n[t]} {A.TYPES[t][1].lower()}"
-                for t in ("dette_retard", "echeance_aujourdhui", "echeance_proche", "rupture", "stock_faible")
-                if n[t]
-            ]
-            with st.container(border=True):
-                st.markdown(
-                    f"#### 🔔 À traiter en priorité  \n<small>{' · '.join(morceaux)}</small>", unsafe_allow_html=True
-                )
-                for i, a in enumerate(urgentes[:5]):
-                    ligne_alerte(a, params, f"dash_{i}")
-                if len(urgentes) > 5:
-                    config.bouton_page(
-                        st, f"Voir toutes les alertes ({len(urgentes)}) →", "Alertes", key="toutes_alertes"
-                    )
-        else:
-            st.success("✅ Aucune alerte urgente : pas de retard de paiement, pas de rupture de stock.")
-
-        # ---------- Aujourd'hui ----------
-        st.markdown("#### 📅 Aujourd'hui")
-        j, h = T.jour(session), T.jour(session, aujourd - timedelta(days=1))
-        config.kpis(
-            [
-                ("Ventes du jour", fmt_money(j["ca"]), config.SECONDARY_BLUE, _evol(j["ca"], h["ca"])),
-                ("Argent encaissé", fmt_money(j["encaisse"]), config.SUCCESS_GREEN, "comptant + remboursements"),
-                (
-                    "Bénéfice du jour",
-                    fmt_money(j["benefice"]),
-                    config.PRIMARY_BLUE,
-                    "estimé" if j["marge_complete"] else "partiel : prix d'achat manquants",
-                ),
-                ("Nombre de ventes", j["nb_ventes"], config.MUTED, f"panier moyen {fmt_money(j['panier_moyen'])}"),
-            ]
-        )
-        if j["par_mode"]:
-            st.caption("Caisse du jour : " + "  ·  ".join(f"**{m}** {fmt_money(v)}" for m, v in j["par_mode"].items()))
-
-        # ---------- Période ----------
-        st.write("")
-        c1, c2 = st.columns([2, 3], vertical_alignment="center")
-        c1.markdown("#### 📊 Activité")
-        periode = c2.segmented_control("Période", PERIODES, default="Ce mois", label_visibility="collapsed")
-        periode = periode or "Ce mois"
+        config.bouton_page(b[1], "💰 Encaisser", "Dettes", use_container_width=True)
+        config.bouton_page(b[2], "📦 Entrée de stock", "Entrees", use_container_width=True)
+        periode = b[4].selectbox(
+            "Période", PERIODES, index=PERIODES.index("30 derniers jours"), label_visibility="collapsed",
+            key="dash_periode", format_func=lambda x: f"📅  {x}",
+        )  # fmt: skip
         debut, fin = config.get_date_range(periode)
         duree = fin - debut
         p, prec = T.resume_ventes(session, debut, fin), T.resume_ventes(session, debut - duree, debut)
         dettes = T.resume_dettes(session)
         stock = T.resume_stock(session, seuil)
-        config.kpis(
-            [
-                (
-                    "Chiffre d'affaires",
-                    fmt_money(p["ca"]),
-                    config.SECONDARY_BLUE,
-                    _evol(p["ca"], prec["ca"], "période préc."),
-                ),
-                (
-                    "Bénéfice",
-                    fmt_money(p["benefice"]),
-                    config.PRIMARY_BLUE,
-                    f"marge {p['benefice'] / p['ca']:.0%}" if p["ca"] else "",
-                ),
-                (
-                    "Encaissé",
-                    fmt_money(p["encaisse"]),
-                    config.SUCCESS_GREEN,
-                    f"dont {fmt_money(p['credit'])} vendus à crédit",
-                ),
-                (
-                    "Dettes à encaisser",
-                    fmt_money(sum(dettes["tranches"].values())),
-                    config.WARNING_ORANGE,
-                    f"{fmt_money(dettes['a_encaisser_semaine'])} prévus sous 7 j",
-                ),
-                ("Valeur du stock", fmt_money(stock["valeur_achat"]), config.MUTED, "au prix d'achat"),
-            ]
-        )
-        st.write("")
+        du = sum(dettes["tranches"].values())
+        en_retard = sum(v for k, v in dettes["tranches"].items() if k != "À jour")
 
+        # ---------- Cartes KPI ----------
+        k = st.columns(4)
+        cartes = [
+            ui.carte_kpi("Chiffre d'affaires", p["ca"], "panier", ui.BLEU, T.variation(p["ca"], prec["ca"])),
+            ui.carte_kpi(
+                "Bénéfice",
+                p["benefice"],
+                "hausse",
+                ui.VERT,
+                T.variation(p["benefice"], prec["benefice"]),
+                f"marge {p['benefice'] / p['ca']:.0%}" if p["ca"] else "",
+            ),
+            ui.carte_kpi(
+                "Argent encaissé",
+                p["encaisse"],
+                "portefeuille",
+                ui.VIOLET,
+                T.variation(p["encaisse"], prec["encaisse"]),
+            ),
+            ui.carte_kpi(
+                "Dettes à encaisser",
+                du,
+                "carte",
+                ui.ORANGE,
+                detail=f"{fmt_money(en_retard)} en retard" if en_retard else "aucun retard",
+            ),
+        ]
+        for col, html in zip(k, cartes, strict=True):
+            col.markdown(html, unsafe_allow_html=True)
+
+        j = T.jour(session)
+        st.markdown(
+            "<div class='bande-jour'><b>Aujourd'hui</b>"
+            f"<span>🛒 {fmt_money(j['ca'])} vendus</span><span>💵 {fmt_money(j['encaisse'])} encaissés</span>"
+            f"<span>🧾 {j['nb_ventes']} vente(s)</span>"
+            f"<span>📈 {fmt_money(j['benefice'])} de bénéfice</span></div>",
+            unsafe_allow_html=True,
+        )
+
+        # ---------- Évolution · Top produits · Clients récents ----------
+        g1, g2, g3 = st.columns([1.7, 1, 1])
+        with g1, _carte("evolution"):
+            st.markdown(ui.titre_carte(f"Évolution des ventes · {periode.lower()}", "graphe"), unsafe_allow_html=True)
+            points = T.evolution(session, debut, fin)
+            if any(v for _, v in points):
+                st.plotly_chart(_graphe_evolution(points), use_container_width=True, config={"displayModeBar": False})
+            else:
+                st.caption("Aucune vente sur la période.")
+        with g2, _carte("top_produits"):
+            st.markdown(ui.titre_carte("Top produits", "trophee", ui.ORANGE), unsafe_allow_html=True)
+            if p["par_produit"]:
+                categories = dict(session.query(Produit.nom, Produit.categorie).all())
+                st.markdown(ui.liste_top_produits(p["par_produit"][:5], categories), unsafe_allow_html=True)
+            else:
+                st.caption("Aucune vente sur la période.")
+        with g3, _carte("clients"):
+            st.markdown(ui.titre_carte("Clients récents", "clients"), unsafe_allow_html=True)
+            recents = T.clients_recents(session, 5)
+            if recents:
+                st.markdown(ui.liste_clients(recents, aujourd), unsafe_allow_html=True)
+                config.bouton_page(st, "Voir tous les clients →", "Clients", key="dash_clients", type="tertiary")
+            else:
+                st.caption("Aucun client servi pour l'instant.")
+
+        # ---------- Répartition · Stock · Alertes ----------
+        g4, g5, g6 = st.columns(3)
+        with g4, _carte("repartition"):
+            st.markdown(ui.titre_carte("Répartition des ventes", "anneau", ui.VIOLET), unsafe_allow_html=True)
+            if p["par_categorie"]:
+                st.plotly_chart(_anneau(p["par_categorie"]), use_container_width=True, config={"displayModeBar": False})
+                st.markdown(ui.legende(p["par_categorie"]), unsafe_allow_html=True)
+            else:
+                st.caption("Aucune vente sur la période.")
+        with g5, _carte("stock"):
+            st.markdown(ui.titre_carte("Stock par catégorie", "stock", ui.VERT), unsafe_allow_html=True)
+            if stock["par_categorie"]:
+                st.markdown(
+                    ui.barres_progression(dict(list(stock["par_categorie"].items())[:6])), unsafe_allow_html=True
+                )
+                st.caption(f"Part de la valeur du stock · total {fmt_money(stock['valeur_achat'])} au prix d'achat")
+            else:
+                st.caption("Aucun produit en stock.")
+        with g6, _carte("alertes"):
+            nb = n[A.CRITIQUE] + n[A.ATTENTION]
+            st.markdown(ui.titre_carte(f"Alertes · {nb} à traiter", "cloche", ui.ROUGE), unsafe_allow_html=True)
+            urgentes = [a for a in alertes if a.niveau != A.INFO] or alertes
+            if urgentes:
+                st.markdown(ui.liste_alertes(urgentes[:5]), unsafe_allow_html=True)
+                config.bouton_page(st, "Voir et traiter →", "Alertes", key="toutes_alertes", type="tertiary")
+            else:
+                st.success("Rien à signaler 👍")
+
+        # ---------- Analyse détaillée ----------
+        st.markdown("<div class='section-titre'>Analyse détaillée</div>", unsafe_allow_html=True)
         t1, t2, t3, t4 = st.tabs(["📈 Ventes", "💳 Dettes", "📦 Stock", "👥 Clients"])
         with t1:
             _onglet_ventes(p)

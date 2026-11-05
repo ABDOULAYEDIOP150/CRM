@@ -3,10 +3,12 @@
 from collections import defaultdict
 from datetime import date, datetime, timedelta
 
+from sqlalchemy import func
+
 from config import CLIENT_PASSAGE
 
 from . import dettes as D
-from .models import Client, Paiement, Produit, Vente
+from .models import Client, Paiement, Produit, Vente, VenteProduit
 
 
 def _bornes(jour):
@@ -113,3 +115,71 @@ def top_clients(session, debut, fin, n=5):
 
 def nouveaux_clients(session, debut, fin):
     return session.query(Client).filter(Client.date_creation.between(debut, fin)).count()
+
+
+def _totaux_ventes(session, debut=None, fin=None, recents=None):
+    """[(client_id, date, total)] calculés par la base en UNE requête (sans charger produits, lots, dettes…)."""
+    sous_total = func.coalesce(func.sum(VenteProduit.quantite * VenteProduit.prix_unit), 0)
+    q = (
+        session.query(Vente.client_id, Vente.date, sous_total, Vente.remise)
+        .outerjoin(VenteProduit, VenteProduit.vente_id == Vente.id)
+        .group_by(Vente.id, Vente.client_id, Vente.date, Vente.remise)
+    )
+    if debut is not None:
+        q = q.filter(Vente.date.between(debut, fin))
+    if recents:
+        q = q.order_by(Vente.date.desc()).limit(recents)
+    return [(c, d, max((st or 0) - (r or 0), 0)) for c, d, st, r in q]
+
+
+MOIS_COURTS = ["Janv", "Févr", "Mars", "Avr", "Mai", "Juin", "Juil", "Août", "Sept", "Oct", "Nov", "Déc"]
+
+
+def evolution(session, debut, fin):
+    """CA par jour (≤ 14 jours), par semaine (≤ 62 jours) ou par mois : [(étiquette, CA), ...], en une requête."""
+    nb_jours = (fin - debut).days
+    if 14 < nb_jours <= 62:
+        return _par_semaine(session, debut, fin)
+    par_mois = nb_jours > 62
+    totaux = defaultdict(float)
+    for _, quand, total in _totaux_ventes(session, debut, fin):
+        cle = (quand.year, quand.month) if par_mois else quand.date()
+        totaux[cle] += total
+    if par_mois:
+        cles, (a, m) = [], (debut.year, debut.month)
+        while (a, m) <= (fin.year, fin.month):
+            cles.append((a, m))
+            a, m = (a + 1, 1) if m == 12 else (a, m + 1)
+        return [(f"{MOIS_COURTS[m - 1]}", totaux[(a, m)]) for a, m in cles]
+    jours = [(debut + timedelta(days=i)).date() for i in range((fin.date() - debut.date()).days + 1)]
+    return [(j.strftime("%d/%m"), totaux[j]) for j in jours]
+
+
+def _par_semaine(session, debut, fin):
+    """Tranches de 7 jours qui se terminent aujourd'hui (la dernière est la semaine en cours)."""
+    bornes = []
+    fin_tranche = fin.date()
+    while fin_tranche >= debut.date():
+        bornes.append((max(fin_tranche - timedelta(days=6), debut.date()), fin_tranche))
+        fin_tranche -= timedelta(days=7)
+    bornes.reverse()
+    totaux = defaultdict(float)
+    for _, quand, total in _totaux_ventes(session, debut, fin):
+        for i, (a, b) in enumerate(bornes):
+            if a <= quand.date() <= b:
+                totaux[i] += total
+                break
+    return [(f"{a:%d/%m}–{b:%d/%m}", totaux[i]) for i, (a, b) in enumerate(bornes)]
+
+
+def clients_recents(session, n=5):
+    """Derniers clients servis (hors client de passage) : [(client, montant de la dernière vente, date), ...]."""
+    vus, lignes = set(), []
+    for client_id, quand, total in _totaux_ventes(session, recents=60):
+        if client_id is None or client_id in vus:
+            continue
+        vus.add(client_id)
+        lignes.append((client_id, total, quand))
+    clients = {c.id: c for c in session.query(Client).filter(Client.id.in_(vus))} if vus else {}
+    res = [(clients[i], m, d) for i, m, d in lignes if i in clients and clients[i].nom != CLIENT_PASSAGE]
+    return res[:n]

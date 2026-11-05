@@ -109,7 +109,7 @@ MUTED = "#64748b"
 
 
 def setup_page():
-    st.set_page_config(page_title=APP_NAME, page_icon=APP_ICON, layout="wide", initial_sidebar_state="expanded")
+    st.set_page_config(page_title=APP_NAME, page_icon=APP_ICON, layout="wide", initial_sidebar_state="auto")
 
 
 # ---------------------------------------------------------------- Formatage
@@ -145,9 +145,17 @@ def get_date_range(periode):
 
 # ---------------------------------------------------------------- Composants
 def entete(titre, sous_titre=""):
-    """Titre de page homogène."""
-    sous = f"<p class='crm-sub'>{escape(sous_titre)}</p>" if sous_titre else ""
-    st.markdown(f"<div class='crm-head'><h1>{escape(titre)}</h1>{sous}</div>", unsafe_allow_html=True)
+    """Barre du haut homogène : titre de la page, lieu, cloche des alertes, boutique.
+
+    Les infos de droite sont préparées par app_crm.py (st.session_state["_barre"]).
+    """
+    from modules import ui  # import local : modules importe config
+
+    b = st.session_state.get("_barre", {})
+    st.markdown(
+        ui.barre_haut(titre, sous_titre, b.get("lieu", ""), b.get("alertes", 0), b.get("boutique", "")),
+        unsafe_allow_html=True,
+    )
 
 
 def kpi(titre, valeur, couleur=SECONDARY_BLUE, detail=""):
