@@ -218,8 +218,10 @@ div[class*="st-key-carte_auto_"] { background: #fff; border: 1px solid #e8edf5; 
 [data-testid="stExpander"] summary { font-weight: 600; }
 
 /* Boutons secondaires et messages */
-.stButton > button[kind="secondary"], .stDownloadButton > button { background: #fff; border: 1px solid #dbe3ee; }
-.stButton > button[kind="secondary"]:hover, .stDownloadButton > button:hover { border-color: #2563eb; color: #1d4ed8; }
+.stButton > button[kind="secondary"], .stDownloadButton > button[kind="secondary"] { background: #fff;
+    border: 1px solid #dbe3ee; }
+.stButton > button[kind="secondary"]:hover, .stDownloadButton > button[kind="secondary"]:hover { border-color: #2563eb;
+    color: #1d4ed8; }
 [data-testid="stAlert"] > div { border-radius: 12px; }
 
 /* Titres de section dans les pages */
@@ -373,3 +375,89 @@ section[data-testid="stSidebar"] .stButton > button p { font-size: .9rem; }
     .k-t { font-size: .76rem; }
 }
 .k-t { overflow-wrap: normal; }
+
+/* ======================================================================
+   Caisse (Nouvelle vente)
+   ====================================================================== */
+/* Cartes produits compactes */
+div[class*="st-key-pv_"] { background: #fff; border: 1px solid #e8edf5; border-radius: 14px; padding: .65rem .7rem .7rem;
+    box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 4px 12px rgba(15,23,42,.04); gap: .45rem; }
+div[class*="st-key-pv_"]:hover { border-color: #bfd3fb; box-shadow: 0 6px 18px rgba(37,99,235,.10); }
+.pv-haut { display: flex; align-items: center; gap: .4rem; }
+.pv-haut .pastille { width: 30px; height: 30px; border-radius: 9px; font-size: .68rem; }
+.pv-code { font-size: .7rem; color: #94a3b8; font-weight: 600; white-space: nowrap; }
+.pv-panier { margin-left: auto; font-size: .68rem; font-weight: 700; color: #fff; background: #2563eb; border-radius: 999px;
+    padding: 1px 7px; white-space: nowrap; }
+.pv-nom { font-weight: 700; font-size: .86rem; color: #0f172a; line-height: 1.25; margin-top: .4rem; min-height: 2.5em;
+    display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.pv-prix { font-weight: 800; font-size: 1rem; color: #1d4ed8; margin-top: .25rem; white-space: nowrap; }
+.pv-prix small { color: #64748b; font-weight: 500; font-size: .74rem; }
+.pv-bas { margin-top: .3rem; margin-bottom: .55rem; }
+.pv-badge { font-size: .7rem; font-weight: 700; padding: 2px 8px; border-radius: 6px; white-space: nowrap; }
+.pv-badge.ok { color: #15803d; background: #dcfce7; }
+.pv-badge.faible { color: #b45309; background: #fef3c7; }
+.pv-badge.rupture { color: #fff; background: #ef4444; }
+.pv.vide .pv-nom, .pv.vide .pv-prix { opacity: .55; }
+div[class*="st-key-add_"] button { min-height: 32px; padding: .2rem .5rem; border-radius: 9px; }
+div[class*="st-key-add_"] button p { font-size: .82rem; }
+
+/* Ticket fixe à droite pendant le défilement */
+[data-testid="stLayoutWrapper"]:has(> .st-key-ticket_vente) { position: sticky; top: 3.2rem; z-index: 2;
+    align-self: flex-start; width: 100%; }
+.st-key-ticket_vente { background: #fff; border: 1px solid #e8edf5; border-radius: 16px;
+    padding: 1rem 1.05rem; gap: .55rem; box-shadow: 0 1px 2px rgba(15,23,42,.04), 0 10px 28px rgba(15,23,42,.08); z-index: 2; }
+.tk-titre { margin-top: .2rem; font-weight: 800; font-size: 1rem; color: #0f172a; display: flex; align-items: center; gap: .5rem; }
+.tk-nb { font-size: .72rem; font-weight: 700; color: #1d4ed8; background: #e8f0fe; border-radius: 999px; padding: 1px 8px; }
+.tk-vide { font-size: .85rem; color: #94a3b8; padding: .55rem .2rem; border: 1px dashed #dbe3ee; border-radius: 10px;
+    text-align: center; }
+div[class*="st-key-tk_ligne_"] { border-bottom: 1px solid #eef2f7; padding-bottom: .35rem; }
+div[class*="st-key-tk_ligne_"] [data-testid="stHorizontalBlock"] { gap: .4rem; }
+.tk-nom { font-weight: 700; font-size: .84rem; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tk-pu { font-size: .74rem; color: #64748b; }
+.tk-mt { font-weight: 800; font-size: .86rem; color: #0f172a; text-align: right; white-space: nowrap; }
+.tk-lib { font-size: .84rem; color: #475569; font-weight: 600; }
+.tk-ligne { display: flex; justify-content: space-between; font-size: .86rem; color: #475569; padding: .15rem .1rem; }
+.tk-ligne b { color: #0f172a; }
+.tk-ligne.du b { color: #d97706; }
+.tk-ech { display: flex; justify-content: space-between; font-size: .8rem; color: #64748b; padding: .05rem .1rem;
+    border-bottom: 1px dotted #e2e8f0; }
+.tk-total { display: flex; justify-content: space-between; align-items: center; background: #1e3a8a; color: #fff;
+    border-radius: 12px; padding: .7rem .95rem; margin-top: .2rem; margin-bottom: 1rem; }
+.tk-total span { font-size: .78rem; text-transform: uppercase; letter-spacing: .06em; opacity: .85; }
+.tk-total b { font-size: 1.45rem; font-weight: 800; }
+
+/* Fiche client résumée */
+.fc { display: flex; align-items: center; gap: .6rem; }
+.fc-id b { display: block; font-size: .9rem; color: #0f172a; }
+.fc-id small { color: #64748b; font-size: .76rem; }
+.fc-puces { display: flex; gap: .35rem; flex-wrap: wrap; margin-top: .4rem; }
+
+/* Moyens de paiement : gros boutons colorés */
+.st-key-mode_comptant button, .st-key-mode_acompte button { min-height: 40px; font-weight: 600; }
+.st-key-mode_comptant button p::before, .st-key-mode_acompte button p::before { content: ""; width: 9px; height: 9px;
+    border-radius: 999px; margin-right: .45rem; display: inline-block; vertical-align: middle; background: #94a3b8; }
+.st-key-mode_comptant button:nth-child(1) p::before, .st-key-mode_acompte button:nth-child(1) p::before { background: #16a34a; }
+.st-key-mode_comptant button:nth-child(2) p::before, .st-key-mode_acompte button:nth-child(2) p::before { background: #1dc4ff; }
+.st-key-mode_comptant button:nth-child(3) p::before, .st-key-mode_acompte button:nth-child(3) p::before { background: #ff7900; }
+
+/* Reçu (après validation) */
+.rc { background: #fff; border: 1px solid #e8edf5; border-radius: 14px; padding: 1.1rem 1.2rem; max-width: 420px;
+    box-shadow: 0 6px 20px rgba(15,23,42,.06); font-size: .88rem; }
+.rc-tete { text-align: center; border-bottom: 1px dashed #cbd5e1; padding-bottom: .6rem; margin-bottom: .5rem; }
+.rc-tete b { display: block; font-size: 1.05rem; color: #0f172a; }
+.rc-tete small { display: block; color: #64748b; }
+.rc-l { display: flex; justify-content: space-between; gap: .8rem; padding: .18rem 0; color: #334155; }
+.rc-l b { color: #0f172a; white-space: nowrap; }
+.rc-l.du b { color: #d97706; }
+.rc-sep { border-top: 1px dashed #cbd5e1; margin: .45rem 0; }
+.rc-total { font-size: 1rem; font-weight: 800; }
+
+/* Lignes du panier : − quantité + */
+div[class*="st-key-tk_moins_"] button, div[class*="st-key-tk_plus_"] button { min-height: 32px; padding: 0; border-radius: 9px;
+    background: #f1f5fb; border: 1px solid #dbe3ee; }
+div[class*="st-key-tk_moins_"] button:hover, div[class*="st-key-tk_plus_"] button:hover { background: #e0eafc; }
+div[class*="st-key-q_"] input { text-align: center; font-weight: 700; }
+div[class*="st-key-q_"] [data-testid="stNumberInputContainer"] { min-height: 32px; }
+div[class*="st-key-q_"] button { display: none; }
+div[class*="st-key-del_"] button { min-height: 24px; padding: 0 .2rem; }
+div[class*="st-key-del_"] [data-testid="stIconMaterial"] { color: #94a3b8; }

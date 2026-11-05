@@ -181,3 +181,32 @@ def test_menu_change_de_page_en_un_seul_chargement():
     assert not at.exception, at.exception
     assert at.session_state["page"] == "Dettes"
     assert at.button(key="menu_Dettes").proto.type == "primary"  # bouton actif = page affichée
+
+
+def test_caisse_moins_plus_et_filtres():
+    """Boutons − / + du panier, filtre « Disponibles » sans rupture, filtre « Plus vendus »."""
+    from db.models import Produit, get_session
+
+    with get_session() as s:
+        p = s.query(Produit).filter(Produit.stock > 5).first()
+        pid, stock = p.id, p.stock
+    at = _app()
+    at.session_state["page"] = "Ventes"
+    at.session_state["panier"] = {pid: 2}
+    at.run()
+    at.button(key=f"tk_plus_{pid}").click().run()
+    assert at.session_state["panier"][pid] == 3
+    at.button(key=f"tk_moins_{pid}").click().run()
+    at.button(key=f"tk_moins_{pid}").click().run()
+    at.button(key=f"tk_moins_{pid}").click().run()
+    assert at.session_state["panier"][pid] == 1  # jamais en dessous de 1
+    at.button(key=f"add_{pid}").click().run()
+    assert at.session_state["panier"][pid] == 2 and stock > 2
+    at.button_group(key="filtre_vente").set_value("Disponibles").run()
+    assert not at.exception, at.exception
+    with get_session() as s:
+        ruptures = {x.id for x in s.query(Produit).filter(Produit.stock <= 0)}
+    affiches = {int(b.key.split("_")[1]) for b in at.button if b.key and b.key.startswith("add_")}
+    assert affiches and not (affiches & ruptures)
+    at.button_group(key="filtre_vente").set_value("Plus vendus").run()
+    assert not at.exception, at.exception

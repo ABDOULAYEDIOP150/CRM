@@ -301,3 +301,72 @@ def barres_montants(valeurs, couleurs=None):
             f"<div class='barre-fond'><div class='barre-plein' style='width:{v / maxi * 100:.1f}%;--c:{c}'></div></div></div>"
         )
     return "".join(html)
+
+
+# ---------------------------------------------------------------- Caisse (nouvelle vente)
+def carte_produit(p, dans_panier, couleur, seuil_defaut):
+    """Carte produit compacte : sigle de catégorie, code, nom, prix / unité, badge de stock."""
+    stock, unite = p.stock or 0, p.unite or "pièce"
+    if stock <= 0:
+        badge = "<span class='pv-badge rupture'>Rupture</span>"
+    elif stock <= p.seuil(seuil_defaut):
+        badge = f"<span class='pv-badge faible'>Stock : {stock} {escape(unite)}</span>"
+    else:
+        badge = f"<span class='pv-badge ok'>Stock : {stock} {escape(unite)}</span>"
+    panier = f"<span class='pv-panier'>×{dans_panier}</span>" if dans_panier else ""
+    return (
+        f"<div class='pv{' vide' if stock <= 0 else ''}'><div class='pv-haut'>"
+        f"<span class='pastille sigle' style='--c:{couleur}'>{escape(_sigle(p.categorie).upper())}</span>"
+        f"<span class='pv-code'>{escape(p.reference or '')}</span>{panier}</div>"
+        f"<div class='pv-nom' title='{escape(p.nom)}'>{escape(p.nom)}</div>"
+        f"<div class='pv-prix'>{fmt_money(p.prix)}<small> / {escape(unite)}</small></div>"
+        f"<div class='pv-bas'>{badge}</div></div>"
+    )
+
+
+def fiche_client_caisse(client, encours, en_retard, nb_achats):
+    if en_retard:
+        dette = pastille(f"Dette en retard : {fmt_money(encours)}", ROUGE)
+    elif encours:
+        dette = pastille(f"Dette : {fmt_money(encours)}", ORANGE)
+    else:
+        dette = pastille("Aucune dette", VERT)
+    plafond = f"Plafond {fmt_money(client.plafond_credit)}" if client.plafond_credit else "Sans plafond"
+    return (
+        f"<div class='fc'><span class='avatar' style='--c:{BLEU}'>{escape(_initiales(client.nom))}</span>"
+        f"<div class='fc-id'><b>{escape(client.nom)}</b><small>{escape(client.telephone or '')} · "
+        f"{nb_achats} achat{'s' if nb_achats > 1 else ''}</small></div></div>"
+        f"<div class='fc-puces'>{dette}{pastille(plafond, '#64748b')}</div>"
+    )
+
+
+def totaux_caisse(sous_total, total):
+    return (
+        f"<div class='tk-ligne'><span>Sous-total</span><b>{fmt_money(sous_total)}</b></div>"
+        if sous_total != total
+        else ""
+    ) + f"<div class='tk-total'><span>Total à payer</span><b>{fmt_money(total)}</b></div>"
+
+
+def ticket_recu(vente, boutique, dette=None):
+    """Aperçu du reçu de caisse après validation."""
+    lignes = "".join(
+        f"<div class='rc-l'><span>{vp.quantite} × {escape(vp.produit.nom if vp.produit else '')}</span>"
+        f"<b>{fmt_money(vp.quantite * vp.prix_unit)}</b></div>"
+        for vp in vente.produits
+    )
+    remise = f"<div class='rc-l'><span>Remise</span><b>-{fmt_money(vente.remise)}</b></div>" if vente.remise else ""
+    if dette is not None:
+        paye = f"<div class='rc-l'><span>Avance reçue</span><b>{fmt_money(dette.total_paye)}</b></div>" + (
+            f"<div class='rc-l du'><span>Reste à payer</span><b>{fmt_money(dette.reste)}</b></div>"
+        )
+    else:
+        paye = (
+            f"<div class='rc-l'><span>Payé ({escape(vente.mode_paiement)})</span><b>{fmt_money(vente.total)}</b></div>"
+        )
+    return (
+        f"<div class='rc'><div class='rc-tete'><b>{escape(boutique)}</b>"
+        f"<small>Facture F-{vente.id:05d} · {vente.date:%d/%m/%Y %H:%M}</small>"
+        f"<small>Client : {escape(vente.client.nom)}</small></div>{lignes}<div class='rc-sep'></div>{remise}"
+        f"<div class='rc-l rc-total'><span>Total</span><b>{fmt_money(vente.total)}</b></div>{paye}</div>"
+    )
