@@ -1,9 +1,9 @@
-"""Tableau de bord : la journée, les alertes urgentes, puis ventes / dettes / stock / clients en onglets."""
+"""Tableau de bord : chiffres clés, évolution, marges, produits à recommander, actions du jour, meilleurs clients."""
 
-from datetime import date
+from collections import defaultdict
+from datetime import date, datetime, timedelta
+from html import escape
 
-import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
@@ -12,89 +12,51 @@ from config import fmt_money
 from db import alertes as A
 from db import dettes as D
 from db import tableau as T
-from db.models import Produit, en_parallele, memoire
-from db.utils import get_evolution_ca, get_params
+from db.models import en_parallele, memoire
+from db.utils import get_params
 from modules import ui
 
-PERIODES = ["Cette semaine", "Ce mois", "30 derniers jours", "Cette année"]
+PERIODES = ["Aujourd'hui", "Cette semaine", "Ce mois", "30 derniers jours", "Cette année"]
+COMPARAISON = {"Aujourd'hui": "vs hier", "Cette semaine": "vs sem. préc."}
 JOURS = ["lundi", "mardi", "mercredi", "jeudi", "vendredi", "samedi", "dimanche"]
-MOIS = [
-    "janvier",
-    "février",
-    "mars",
-    "avril",
-    "mai",
-    "juin",
-    "juillet",
-    "août",
-    "septembre",
-    "octobre",
-    "novembre",
-    "décembre",
-]
+MOIS = ["janvier", "février", "mars", "avril", "mai", "juin", "juillet", "août", "septembre", "octobre",
+        "novembre", "décembre"]  # fmt: skip
+
+# Hauteurs fixes : toutes les cartes d'une même rangée sont alignées
+H_RANGEE_1, H_RANGEE_2, H_RANGEE_3 = 330, 270, 300
+SANS_BARRE = {"displayModeBar": False}
 
 
-def _fig(fig, h=300):
-    fig.update_layout(
-        margin=dict(l=8, r=8, t=8, b=8),
-        height=h,
-        paper_bgcolor="rgba(0,0,0,0)",
-        plot_bgcolor="rgba(0,0,0,0)",
-        legend=dict(orientation="h", y=1.12),
-        font=dict(size=12, family=f"{config.POLICE}, sans-serif"),
+# ---------------------------------------------------------------- Données (gardées en mémoire)
+def _dettes(session):
+    session.info["dettes_actives"] = D.dettes_actives(session)  # lues une fois pour les deux calculs
+    soldes = defaultdict(float)
+    for d in session.info["dettes_actives"]:
+        soldes[d.client.nom] += d.reste
+    return T.resume_dettes(session), dict(soldes)
+
+
+def _donnees(periode, seuil):
+    debut, fin = config.get_date_range(periode)
+    duree = fin - debut
+    maintenant = datetime.now()
+    minuit = maintenant.replace(hour=0, minute=0, second=0, microsecond=0)
+    r = en_parallele(
+        {
+            "p": lambda s: T.resume_ventes(s, debut, fin),
+            "prec": lambda s: T.resume_ventes(s, debut - duree, debut),
+            "dettes": _dettes,
+            "stock": lambda s: T.resume_stock(s, seuil),
+            "courbe7": lambda s: T.evolution(s, minuit - timedelta(days=6), maintenant),
+            "courbe30": lambda s: T.evolution(s, minuit - timedelta(days=29), maintenant),
+            "clients": lambda s: (T.top_clients(s, debut, fin, 5), T.clients_recents(s, 5)),
+        }
     )
-    return fig
+    (dettes, soldes), (top, recents) = r["dettes"], r["clients"]
+    return {**r, "dettes": dettes, "soldes": soldes, "top": top, "recents": recents}
 
 
-def _evol(actuel, precedent, libelle="hier"):
-    v = T.variation(actuel, precedent)
-    if v is None:
-        return f"{libelle} : {fmt_money(precedent)}" if precedent is not None else ""
-    fleche = "▲" if v >= 0 else "▼"
-    return f"{fleche} {abs(v):.0f} % vs {libelle}"
-
-
-def _barres(df, x, y, couleur, h=300, fmt_x=True):
-    fig = px.bar(df, x=x, y=y, orientation="h", color_discrete_sequence=[couleur], text=x)
-    fig.update_traces(texttemplate="%{text:,.0f}" if fmt_x else "%{text}", textposition="outside", cliponaxis=False)
-    fig.update_yaxes(autorange="reversed", title=None)
-    fig.update_xaxes(title=None, showticklabels=False)
-    return _fig(fig, h)
-
-
-def _graphe_evolution(points):
-    """Courbe du chiffre d'affaires avec zone dégradée ; étiquettes sur les points s'il y en a peu."""
-    x = [e for e, _ in points]
-    y = [v for _, v in points]
-    peu = len(points) <= 12
-    fig = go.Figure(
-        go.Scatter(
-            x=x,
-            y=y,
-            mode="lines+markers+text" if peu else "lines+markers",
-            text=[_court(v) for v in y[:-1]] + [""] if peu else None,  # le dernier a sa bulle
-            textposition="top center",
-            textfont=dict(size=12, color="#0f172a"),
-            line=dict(color=ui.BLEU, width=3, shape="spline", smoothing=0.35),
-            marker=dict(size=8 if peu else 5, color=ui.BLEU, line=dict(color="#fff", width=2)),
-            fill="tozeroy",
-            fillgradient=dict(type="vertical", colorscale=[[0, "rgba(37,99,235,0.02)"], [1, "rgba(37,99,235,0.28)"]]),
-            hovertemplate="%{x}<br><b>%{y:,.0f} " + config.DEVISE + "</b><extra></extra>",
-            cliponaxis=False,
-        )
-    )
-    if y and y[-1] > 0:  # bulle sur le dernier point
-        fig.add_annotation(
-            x=x[-1], y=y[-1], text=f"<b>{_court(y[-1])}</b>", showarrow=False, yshift=22,
-            bgcolor="#1e3a8a", font=dict(color="#fff", size=12), borderpad=5,
-        )  # fmt: skip
-    fig.update_yaxes(tickformat="~s", gridcolor="#eef1f6", zeroline=False, rangemode="tozero", title=None)
-    fig.update_xaxes(showgrid=False, title=None, tickfont=dict(color="#64748b"))
-    _fig(fig, 300)
-    fig.update_layout(showlegend=False, separators=", ", hoverlabel=dict(bgcolor="#fff"))
-    return fig
-
-
+# ---------------------------------------------------------------- Graphiques
 def _court(v):
     """12 480 000 -> 12,5M ; 41 600 -> 41,6k."""
     for seuil, suffixe in ((1e6, "M"), (1e3, "k")):
@@ -103,68 +65,198 @@ def _court(v):
     return f"{v:.0f}"
 
 
-def _anneau(valeurs):
-    """Anneau seul (la légende est en HTML dessous, plus lisible dans une carte étroite)."""
-    fig = go.Figure(
-        go.Pie(
-            labels=list(valeurs),
-            values=list(valeurs.values()),
-            hole=0.62,
-            sort=False,
-            marker=dict(colors=ui.PALETTE[: len(valeurs)], line=dict(color="#fff", width=3)),
-            textinfo="none",
-            hovertemplate="%{label}<br><b>%{value:,.0f} " + config.DEVISE + "</b> (%{percent})<extra></extra>",
-        )
+def _mise_en_page(fig, hauteur):
+    fig.update_layout(
+        height=hauteur,
+        margin=dict(l=4, r=8, t=18, b=4),
+        paper_bgcolor="rgba(0,0,0,0)",
+        plot_bgcolor="rgba(0,0,0,0)",
+        showlegend=False,
+        font=dict(size=12, family=f"{config.POLICE}, sans-serif", color="#334155"),
+        separators=", ",
+        hoverlabel=dict(bgcolor="#fff"),
     )
-    total = sum(valeurs.values())
-    fig.add_annotation(
-        text=f"<b>{_court(total)}</b><br><span style='font-size:11px;color:#64748b'>{config.DEVISE}</span>",
-        showarrow=False, font=dict(size=20, color="#0f172a"),
-    )  # fmt: skip
-    _fig(fig, 210)
-    fig.update_layout(showlegend=False, margin=dict(l=0, r=0, t=0, b=0), separators=", ")
     return fig
 
 
-def _carte(cle):
-    """Bloc blanc arrondi (style dans static/styles.css, sélecteur st-key-carte_…)."""
-    return st.container(key=f"carte_{cle}")
-
-
-def _dettes_et_debiteurs(session):
-    session.info["dettes_actives"] = D.dettes_actives(session)  # lues une fois pour les deux calculs
-    return T.resume_dettes(session), [(c.nom, m) for c, m in D.resume_creances(session)["top_debiteurs"][:8]]
-
-
-def _stock_et_categories(session, seuil):
-    return T.resume_stock(session, seuil), dict(session.query(Produit.nom, Produit.categorie).all())
-
-
-def _donnees(periode, seuil):
-    """Tous les chiffres du tableau de bord. Les blocs indépendants sont lus en parallèle."""
-    debut, fin = config.get_date_range(periode)
-    duree = fin - debut
-    r = en_parallele(
-        {
-            "p": lambda s: T.resume_ventes(s, debut, fin),
-            "prec": lambda s: T.resume_ventes(s, debut - duree, debut),
-            "jour": T.jour,
-            "dettes": _dettes_et_debiteurs,
-            "stock": lambda s: _stock_et_categories(s, seuil),
-            "courbe": lambda s: (T.evolution(s, debut, fin), T.clients_recents(s, 5)),
-            "clients": lambda s: (T.nouveaux_clients(s, debut, fin), T.top_clients(s, debut, fin, 8)),
-            "evolution_30j": lambda s: get_evolution_ca(30),
-        }
+def _courbe(points, hauteur):
+    x = [e for e, _ in points]
+    y = [v for _, v in points]
+    fig = go.Figure(
+        go.Scatter(
+            x=x,
+            y=y,
+            mode="lines+markers+text",
+            text=[_court(v) for v in y],
+            textposition="top center",
+            textfont=dict(size=11, color="#0f172a"),
+            line=dict(color=ui.BLEU, width=2.5),
+            marker=dict(size=7, color=ui.BLEU, line=dict(color="#fff", width=2)),
+            fill="tozeroy",
+            fillgradient=dict(type="vertical", colorscale=[[0, "rgba(37,99,235,0.02)"], [1, "rgba(37,99,235,0.22)"]]),
+            hovertemplate="%{x}<br><b>%{y:,.0f} " + config.DEVISE + "</b><extra></extra>",
+            cliponaxis=False,
+        )
     )
-    (dettes, top_debiteurs), (stock, categories) = r["dettes"], r["stock"]
-    (points, recents), (nouveaux, top_clients) = r["courbe"], r["clients"]
-    return {
-        "p": r["p"], "prec": r["prec"], "jour": r["jour"], "dettes": dettes, "top_debiteurs": top_debiteurs,
-        "stock": stock, "categories": categories, "points": points, "recents": recents, "nouveaux": nouveaux,
-        "top_clients": top_clients, "evolution_30j": r["evolution_30j"],
-    }  # fmt: skip
+    fig.update_yaxes(tickformat="~s", gridcolor="#eef1f6", zeroline=False, rangemode="tozero", title=None)
+    fig.update_xaxes(showgrid=False, title=None, tickfont=dict(size=11, color="#64748b"))
+    return _mise_en_page(fig, hauteur)
 
 
+def _court_libelle(texte):
+    """« Ciment & maçonnerie » -> « Ciment » (le nom complet s'affiche au survol)."""
+    mot = texte.split()[0] if texte.split() else texte
+    return mot if len(mot) <= 10 else mot[:9] + "."
+
+
+def _barres_categories(marges, hauteur):
+    items = [(k, v) for k, v in marges.items() if v > 0][:4]
+    total = sum(v for _, v in items) or 1
+    fig = go.Figure(
+        go.Bar(
+            x=[_court_libelle(k) for k, _ in items],
+            y=[v for _, v in items],
+            text=[f"<b>{v / total:.0%}</b>" for _, v in items],
+            textposition="outside",
+            textfont=dict(size=12, color="#0f172a"),
+            marker=dict(color=ui.PALETTE[: len(items)], cornerradius=6),
+            customdata=[k for k, _ in items],
+            hovertemplate="%{customdata}<br><b>%{y:,.0f} " + config.DEVISE + "</b> de marge<extra></extra>",
+            cliponaxis=False,
+            width=0.62,
+        )
+    )
+    fig.update_yaxes(visible=False, rangemode="tozero")
+    fig.update_xaxes(tickfont=dict(size=10, color="#475569"), title=None, tickangle=0, automargin=True)
+    return _mise_en_page(fig, hauteur)
+
+
+# ---------------------------------------------------------------- Blocs
+def _tete(texte, nom_icone, couleur=ui.BLEU):
+    st.markdown(ui.titre_carte(texte, nom_icone, couleur), unsafe_allow_html=True)
+
+
+def _kpis(p, prec, dettes, stock, periode):
+    comparaison = COMPARAISON.get(periode, "vs période préc.")
+    du = sum(dettes["tranches"].values())
+    en_retard = sum(v for k, v in dettes["tranches"].items() if k != "À jour")
+    a_commander = len(stock["ruptures"]) + len(stock["faibles"])
+    taux = p["benefice"] / p["ca"] if p["ca"] else 0
+    st.markdown(
+        ui.grille_kpi(
+            [
+                ("Chiffre d'affaires", fmt_money(p["ca"]), "panier", ui.BLEU,
+                 ui.variation(T.variation(p["ca"], prec["ca"]), comparaison), False),
+                ("Marge brute", fmt_money(p["benefice"]), "hausse", ui.VERT,
+                 ui.pastille(f"{taux:.1%}".replace(".", ","), ui.VERT) if p["ca"] else "", False),
+                ("Encaissements", fmt_money(p["encaisse"]), "portefeuille", "#16a34a",
+                 ui.variation(T.variation(p["encaisse"], prec["encaisse"]), comparaison), False),
+                ("Créances clients", fmt_money(du), "clients", ui.ORANGE,
+                 ui.pastille(f"{fmt_money(en_retard)} en retard", ui.ORANGE) if en_retard
+                 else ui.pastille("À jour", ui.VERT), False),
+                ("Valeur du stock (coût d'achat)", fmt_money(stock["valeur_achat"]), "stock", ui.VIOLET,
+                 f"<span class='k-det'>{stock['nb_produits']} produits</span>", False),
+                ("À recommander", f"{a_commander} produit{'s' if a_commander > 1 else ''}", "alerte",
+                 ui.ROUGE, f"<span class='k-det'>dont {len(stock['ruptures'])} en rupture</span>", a_commander > 0),
+            ]
+        ),
+        unsafe_allow_html=True,
+    )  # fmt: skip
+
+
+def _evolution(d):
+    h, s = st.columns([3, 1.1], vertical_alignment="center")
+    with h:
+        _tete("Évolution des ventes", "graphe")
+    choix = s.selectbox("Durée", ["7 jours", "30 jours"], key="dash_courbe", label_visibility="collapsed")
+    points = d["courbe7"] if choix == "7 jours" else d["courbe30"]
+    if any(v for _, v in points):
+        st.plotly_chart(_courbe(points, H_RANGEE_1 - 92), width="stretch", config=SANS_BARRE)
+    else:
+        st.caption("Aucune vente sur cette durée.")
+
+
+def _marges(p):
+    _tete("Marge par catégorie", "graphe", ui.VIOLET)
+    if any(v > 0 for v in p["marge_par_categorie"].values()):
+        st.plotly_chart(_barres_categories(p["marge_par_categorie"], H_RANGEE_1 - 82), width="stretch",
+                        config=SANS_BARRE)  # fmt: skip
+    else:
+        st.caption("Aucune vente sur la période.")
+
+
+def _a_recommander(stock):
+    _tete("Produits à recommander", "stock", ui.BLEU)
+    liste = sorted(stock["ruptures"], key=lambda p: p.nom) + stock["faibles"]
+    if not liste:
+        st.success("Aucun produit sous le seuil.")
+        return
+    largeurs = [1.9, 0.85, 0.8, 1.85]
+    with st.container(key="reco_tete"):
+        for col, lib in zip(st.columns(largeurs, vertical_alignment="center"), ["Produit", "Stock", "Seuil", "Action"],
+                            strict=True):  # fmt: skip
+            col.markdown(f"<span class='reco-th'>{lib}</span>", unsafe_allow_html=True)
+    seuil_defaut = int(get_params()["seuil_stock"])
+    for p in liste[:12]:
+        with st.container(key=f"reco_ligne_{p.id}"):
+            c = st.columns(largeurs, vertical_alignment="center")
+            c[0].markdown(f"<span class='reco-nom' title='{escape(p.nom)}'>{escape(p.nom)}</span>",
+                          unsafe_allow_html=True)  # fmt: skip
+            classe = "zero" if (p.stock or 0) <= 0 else "bas"
+            c[1].markdown(f"<span class='reco-n {classe}'>{p.stock or 0}</span>", unsafe_allow_html=True)
+            c[2].markdown(f"<span class='reco-n'>{p.seuil(seuil_defaut)}</span>", unsafe_allow_html=True)
+            config.bouton_page(c[3], "Commander", "Entrees", etat={"produit_cible": p.id}, key=f"cmd_{p.id}",
+                               type="primary", width="stretch")  # fmt: skip
+
+
+def _a_traiter(n):
+    _tete("À traiter aujourd'hui", "attention", ui.ORANGE)
+
+    def libelle(nb, un, plusieurs):
+        return f"**{nb}** {plusieurs if nb > 1 else un}"
+
+    lignes = [
+        ("traiter_retard", n["dette_retard"], "dette en retard de paiement", "dettes en retard de paiement",
+         ":material/group:", "Dettes"),
+        ("traiter_echeance", n["echeance_aujourdhui"] + n["echeance_proche"], "paiement attendu bientôt",
+         "paiements attendus bientôt", ":material/event:", "Dettes"),
+        ("traiter_stock", n["rupture"] + n["stock_faible"], "produit sous le seuil", "produits sous le seuil",
+         ":material/inventory_2:", "Produits"),
+        ("traiter_dormant", n["dormant"], "produit qui ne se vend pas", "produits qui ne se vendent pas",
+         ":material/hourglass_empty:", "Alertes"),
+    ]  # fmt: skip
+    for cle, nb, un, plusieurs, icone, page in lignes:
+        config.bouton_page(st, libelle(nb, un, plusieurs), page, key=cle, icon=icone, type="tertiary", width="stretch")
+
+
+def _top_clients(d, periode):
+    h, b = st.columns([3, 1], vertical_alignment="center")
+    with h:
+        _tete("Top clients", "trophee", ui.ORANGE)
+    config.bouton_page(b, "Voir tous", "Clients", key="dash_clients", width="stretch", icon=":material/arrow_forward:")
+    if not d["top"]:
+        st.caption("Aucun achat de client sur la période.")
+        return
+    lignes = []
+    for nom, total in d["top"]:
+        solde = d["soldes"].get(nom, 0)
+        lignes.append(
+            [
+                f"<span class='avatar mini' style='--c:{ui.BLEU}'>{escape(ui._initiales(nom))}</span>{escape(nom)}",
+                f"<b>{fmt_money(total)}</b>",
+                f"<span class='{'du' if solde else 'ok'}'>{fmt_money(solde)}</span>",
+            ]
+        )
+    colonne = "Achats (" + periode.lower() + ")"
+    st.markdown(ui.tableau(["Client", colonne, "Solde dû"], lignes, droite=(1, 2)), unsafe_allow_html=True)
+
+
+def _bloc(cle, hauteur):
+    """Carte blanche à hauteur fixe : les cartes d'une rangée ont la même taille."""
+    return st.container(height=hauteur, border=False, key=f"carte_{cle}")
+
+
+# ---------------------------------------------------------------- Page
 def show_dashboard():
     params = get_params()
     seuil = int(params["seuil_stock"])
@@ -172,256 +264,55 @@ def show_dashboard():
     alertes = A.alertes_memorisees(params)  # déjà calculées pour le menu : 0 requête
     n = A.compter(alertes)
 
-    config.entete(
-        "Tableau de bord",
-        f"{JOURS[aujourd.weekday()].capitalize()} {aujourd.day} {MOIS[aujourd.month - 1]} {aujourd.year}",
-    )
+    with st.container(key="barre_dash"):
+        c1, c2, c3 = st.columns([3.4, 1.2, 1.7], vertical_alignment="center")
+        jour = f"{JOURS[aujourd.weekday()].capitalize()} {aujourd.day} {MOIS[aujourd.month - 1]} {aujourd.year}"
+        c1.markdown(ui.titre_page("Tableau de bord", f"{params['boutique_nom']} · {jour}"), unsafe_allow_html=True)
+        periode = c2.selectbox("Période", PERIODES, index=PERIODES.index("Ce mois"), key="dash_periode",
+                               label_visibility="collapsed")  # fmt: skip
+        c3.markdown(ui.utilisateur(n[A.CRITIQUE] + n[A.ATTENTION], params["boutique_nom"]), unsafe_allow_html=True)
 
-    # ---------- Actions rapides + période ----------
-    b = st.columns([1, 1, 1, 0.6, 1.1], vertical_alignment="center")
-    config.bouton_page(
-        b[0], "Nouvelle vente", "Ventes", type="primary", width="stretch", icon=":material/add_shopping_cart:"
-    )
-    config.bouton_page(b[1], "Encaisser", "Dettes", width="stretch", icon=":material/payments:")
-    config.bouton_page(b[2], "Entrée de stock", "Entrees", width="stretch", icon=":material/move_to_inbox:")
-    periode = b[4].selectbox(
-        "Période", PERIODES, index=PERIODES.index("30 derniers jours"), label_visibility="collapsed",
-        key="dash_periode", format_func=lambda x: f"{x}",
-    )  # fmt: skip
     # Gardé en mémoire tant que rien n'est enregistré en base : changer de page puis revenir = instantané
     d = memoire(("tableau_de_bord", periode, aujourd, seuil), lambda: _donnees(periode, seuil))
-    p, prec, dettes, stock = d["p"], d["prec"], d["dettes"], d["stock"]
-    du = sum(dettes["tranches"].values())
-    en_retard = sum(v for k, v in dettes["tranches"].items() if k != "À jour")
+    p = d["p"]
 
-    # ---------- Cartes KPI ----------
-    k = st.columns(4)
-    cartes = [
-        ui.carte_kpi("Chiffre d'affaires", p["ca"], "panier", ui.BLEU, T.variation(p["ca"], prec["ca"])),
-        ui.carte_kpi(
-            "Bénéfice",
-            p["benefice"],
-            "hausse",
-            ui.VERT,
-            T.variation(p["benefice"], prec["benefice"]),
-            f"marge {p['benefice'] / p['ca']:.0%}" if p["ca"] else "",
-        ),
-        ui.carte_kpi(
-            "Argent encaissé",
-            p["encaisse"],
-            "portefeuille",
-            ui.VIOLET,
-            T.variation(p["encaisse"], prec["encaisse"]),
-        ),
-        ui.carte_kpi(
-            "Dettes à encaisser",
-            du,
-            "carte",
-            ui.ORANGE,
-            detail=f"{fmt_money(en_retard)} en retard" if en_retard else "aucun retard",
-        ),
-    ]
-    for col, html in zip(k, cartes, strict=True):
-        col.markdown(html, unsafe_allow_html=True)
+    a = st.columns([1, 1, 1, 3.3], vertical_alignment="center")
+    config.bouton_page(a[0], "Nouvelle vente", "Ventes", type="primary", width="stretch",
+                       icon=":material/add_shopping_cart:")  # fmt: skip
+    config.bouton_page(a[1], "Nouvel achat", "Entrees", width="stretch", icon=":material/local_shipping:")
+    config.bouton_page(a[2], "Encaisser", "Dettes", width="stretch", icon=":material/payments:", key="btn_encaisser")
+    a[3].markdown(ui.repartition_paiements(p["par_mode"]), unsafe_allow_html=True)
 
-    j = d["jour"]
-    st.markdown(
-        "<div class='bande-jour'><b>Aujourd'hui</b>"
-        f"<span>{fmt_money(j['ca'])} vendus</span><span>{fmt_money(j['encaisse'])} encaissés</span>"
-        f"<span>{j['nb_ventes']} vente(s)</span>"
-        f"<span>{fmt_money(j['benefice'])} de bénéfice</span></div>",
-        unsafe_allow_html=True,
-    )
+    _kpis(p, d["prec"], d["dettes"], d["stock"], periode)
 
-    # ---------- Évolution · Top produits · Clients récents ----------
-    g1, g2, g3 = st.columns([1.7, 1, 1])
-    with g1, _carte("evolution"):
-        st.markdown(ui.titre_carte(f"Évolution des ventes · {periode.lower()}", "graphe"), unsafe_allow_html=True)
-        points = d["points"]
-        if any(v for _, v in points):
-            st.plotly_chart(_graphe_evolution(points), width="stretch", config={"displayModeBar": False})
-        else:
-            st.caption("Aucune vente sur la période.")
-    with g2, _carte("top_produits"):
-        st.markdown(ui.titre_carte("Top produits", "trophee", ui.ORANGE), unsafe_allow_html=True)
-        if p["par_produit"]:
-            categories = d["categories"]
-            st.markdown(ui.liste_top_produits(p["par_produit"][:5], categories), unsafe_allow_html=True)
-        else:
-            st.caption("Aucune vente sur la période.")
-    with g3, _carte("clients"):
-        st.markdown(ui.titre_carte("Clients récents", "clients"), unsafe_allow_html=True)
-        recents = d["recents"]
-        if recents:
-            st.markdown(ui.liste_clients(recents, aujourd), unsafe_allow_html=True)
-            config.bouton_page(st, "Voir tous les clients", "Clients", key="dash_clients", type="tertiary")
-        else:
-            st.caption("Aucun client servi pour l'instant.")
+    g1, g2, g3 = st.columns([1.5, 1, 1.2])
+    with g1, _bloc("evolution", H_RANGEE_1):
+        _evolution(d)
+    with g2, _bloc("marges", H_RANGEE_1):
+        _marges(p)
+    with g3, _bloc("recommander", H_RANGEE_1):
+        _a_recommander(d["stock"])
 
-    # ---------- Répartition · Stock · Alertes ----------
-    g4, g5, g6 = st.columns(3)
-    with g4, _carte("repartition"):
-        st.markdown(ui.titre_carte("Répartition des ventes", "anneau", ui.VIOLET), unsafe_allow_html=True)
-        if p["par_categorie"]:
-            st.plotly_chart(_anneau(p["par_categorie"]), width="stretch", config={"displayModeBar": False})
-            st.markdown(ui.legende(p["par_categorie"]), unsafe_allow_html=True)
-        else:
-            st.caption("Aucune vente sur la période.")
-    with g5, _carte("stock"):
-        st.markdown(ui.titre_carte("Stock par catégorie", "stock", ui.VERT), unsafe_allow_html=True)
-        if stock["par_categorie"]:
-            st.markdown(ui.barres_progression(dict(list(stock["par_categorie"].items())[:6])), unsafe_allow_html=True)
-            st.caption(f"Valeur totale au prix d'achat : {fmt_money(stock['valeur_achat'])}")
+    g4, g5 = st.columns([1, 1.45])
+    with g4, _bloc("traiter", H_RANGEE_2):
+        _a_traiter(n)
+    with g5, _bloc("top_clients", H_RANGEE_2):
+        _top_clients(d, periode)
+
+    g6, g7, g8 = st.columns(3)
+    with g6, _bloc("stock_cat", H_RANGEE_3):
+        _tete("Stock par catégorie", "stock", ui.VERT)
+        if d["stock"]["par_categorie"]:
+            top = dict(list(d["stock"]["par_categorie"].items())[:5])
+            st.markdown(ui.barres_progression(top), unsafe_allow_html=True)
         else:
             st.caption("Aucun produit en stock.")
-    with g6, _carte("alertes"):
-        nb = n[A.CRITIQUE] + n[A.ATTENTION]
-        st.markdown(ui.titre_carte(f"Alertes · {nb} à traiter", "cloche", ui.ROUGE), unsafe_allow_html=True)
-        urgentes = [a for a in alertes if a.niveau != A.INFO] or alertes
-        if urgentes:
-            st.markdown(ui.liste_alertes(urgentes[:5]), unsafe_allow_html=True)
-            config.bouton_page(st, "Voir toutes les alertes", "Alertes", key="toutes_alertes", type="tertiary")
+    with g7, _bloc("anciennete", H_RANGEE_3):
+        _tete("Ancienneté des dettes", "carte", ui.ROUGE)
+        st.markdown(ui.barres_montants(d["dettes"]["tranches"], ui.COULEURS_TRANCHES), unsafe_allow_html=True)
+    with g8, _bloc("recents", H_RANGEE_3):
+        _tete("Clients récents", "clients")
+        if d["recents"]:
+            st.markdown(ui.liste_clients(d["recents"][:4], aujourd), unsafe_allow_html=True)
         else:
-            st.success("Rien à signaler ")
-
-    # ---------- Analyse détaillée ----------
-    st.markdown("<div class='section-titre'>Analyse détaillée</div>", unsafe_allow_html=True)
-    t1, t2, t3, t4 = st.tabs(["Ventes", "Dettes", "Stock", "Clients"])
-    with t1:
-        _onglet_ventes(p, d["evolution_30j"])
-    with t2:
-        _onglet_dettes(dettes, d["top_debiteurs"])
-    with t3:
-        _onglet_stock(stock, n)
-    with t4:
-        _onglet_clients(p, d["nouveaux"], d["top_clients"])
-
-
-def _onglet_ventes(p, df_30j):
-    g1, g2 = st.columns(2)
-    with config.carte(g1):
-        st.markdown("**Ventes et encaissements, 30 jours**")
-        df = df_30j
-        fig = go.Figure()
-        fig.add_bar(x=df["Date"], y=df["CA"], name="Ventes", marker_color=config.SECONDARY_BLUE)
-        fig.add_scatter(
-            x=df["Date"],
-            y=df["Encaissé"],
-            name="Encaissé",
-            mode="lines",
-            line=dict(color=config.SUCCESS_GREEN, width=2.5),
-        )
-        st.plotly_chart(_fig(fig), width="stretch")
-    with config.carte(g2):
-        st.markdown("**Ventes par catégorie**")
-        if p["par_categorie"]:
-            df = pd.DataFrame(list(p["par_categorie"].items()), columns=["Catégorie", "Montant"])
-            st.plotly_chart(_barres(df, "Montant", "Catégorie", config.PRIMARY_BLUE), width="stretch")
-        else:
-            st.caption("Aucune vente sur la période.")
-    g3, g4 = st.columns(2)
-    with config.carte(g3):
-        st.markdown("**Produits les plus vendus**")
-        if p["par_produit"]:
-            df = pd.DataFrame(p["par_produit"][:8], columns=["Produit", "Quantité", "Montant"])
-            st.plotly_chart(_barres(df, "Montant", "Produit", config.SECONDARY_BLUE), width="stretch")
-        else:
-            st.caption("Aucune vente sur la période.")
-    with config.carte(g4):
-        st.markdown("**Moyens de paiement**")
-        if p["par_mode"]:
-            df = pd.DataFrame(list(p["par_mode"].items()), columns=["Moyen", "Montant"])
-            st.plotly_chart(_fig(px.pie(df, names="Moyen", values="Montant", hole=0.55)), width="stretch")
-        else:
-            st.caption("Aucun encaissement sur la période.")
-
-
-def _onglet_dettes(d, top):
-    tr = d["tranches"]
-    config.kpis(
-        [
-            ("Total dû par les clients", fmt_money(sum(tr.values())), config.WARNING_ORANGE, ""),
-            ("En retard", fmt_money(sum(v for k, v in tr.items() if k != "À jour")), config.DANGER_RED, ""),
-            ("Prévu dans les 7 jours", fmt_money(d["a_encaisser_semaine"]), config.SECONDARY_BLUE, ""),
-            ("Remboursé ce mois", fmt_money(d["recouvre_mois"]), config.SUCCESS_GREEN, ""),
-        ]
-    )
-    g1, g2 = st.columns(2)
-    with config.carte(g1):
-        st.markdown("**Ancienneté des dettes**")
-        df = pd.DataFrame(list(tr.items()), columns=["Tranche", "Montant"])
-        fig = px.bar(
-            df,
-            x="Tranche",
-            y="Montant",
-            color="Tranche",
-            text="Montant",
-            color_discrete_sequence=[config.SUCCESS_GREEN, config.WARNING_ORANGE, "#ea580c", config.DANGER_RED],
-        )
-        fig.update_traces(texttemplate="%{text:,.0f}", textposition="outside", cliponaxis=False)
-        fig.update_layout(showlegend=False)
-        fig.update_xaxes(title=None)
-        fig.update_yaxes(title=None, showticklabels=False)
-        st.plotly_chart(_fig(fig), width="stretch")
-    with config.carte(g2):
-        st.markdown("**Qui doit le plus ?**")
-        if top:
-            df = pd.DataFrame(top, columns=["Client", "Doit"])
-            st.plotly_chart(_barres(df, "Doit", "Client", config.WARNING_ORANGE), width="stretch")
-        else:
-            st.info("Aucune dette en cours.")
-    config.bouton_page(st, "Gérer les dettes", "Dettes")
-
-
-def _onglet_stock(s, n):
-    config.kpis(
-        [
-            ("Valeur au prix d'achat", fmt_money(s["valeur_achat"]), config.MUTED, f"{s['nb_produits']} produits"),
-            ("Valeur au prix de vente", fmt_money(s["valeur_vente"]), config.SECONDARY_BLUE, "si tout est vendu"),
-            ("Ruptures", len(s["ruptures"]), config.DANGER_RED, ", ".join(p.nom for p in s["ruptures"][:3])),
-            ("Stock faible", len(s["faibles"]), config.WARNING_ORANGE, ", ".join(p.nom for p in s["faibles"][:3])),
-        ]
-    )
-    g1, g2 = st.columns(2)
-    with config.carte(g1):
-        st.markdown("**À commander**")
-        a_commander = s["ruptures"] + s["faibles"]
-        if a_commander:
-            st.dataframe(
-                pd.DataFrame(
-                    [
-                        {
-                            "Produit": p.nom,
-                            "Catégorie": p.categorie or "Divers",
-                            "Reste": f"{p.stock} {p.unite or 'pièce'}",
-                        }
-                        for p in a_commander
-                    ]
-                ),
-                hide_index=True,
-                width="stretch",
-            )
-        else:
-            st.success("Rien à commander.")
-    with config.carte(g2):
-        st.markdown("**Valeur du stock par catégorie**")
-        if s["par_categorie"]:
-            df = pd.DataFrame(list(s["par_categorie"].items()), columns=["Catégorie", "Valeur"])
-            st.plotly_chart(_barres(df, "Valeur", "Catégorie", config.MUTED), width="stretch")
-
-
-def _onglet_clients(p, nouveaux, top):
-    config.kpis(
-        [
-            ("Clients servis", p["clients"], config.SECONDARY_BLUE, "sur la période"),
-            ("Nouveaux clients", nouveaux, config.SUCCESS_GREEN, "sur la période"),
-            ("Panier moyen", fmt_money(p["panier_moyen"]), config.MUTED, ""),
-        ]
-    )
-    with config.carte():
-        st.markdown("**Meilleurs clients**")
-        if top:
-            df = pd.DataFrame(top, columns=["Client", "Achats"])
-            st.plotly_chart(_barres(df, "Achats", "Client", config.SUCCESS_GREEN), width="stretch")
-        else:
-            st.caption("Aucun achat de client enregistré sur la période.")
+            st.caption("Aucun client servi pour l'instant.")

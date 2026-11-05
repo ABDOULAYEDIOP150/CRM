@@ -134,17 +134,10 @@ st.session_state["_barre"] = {  # pour la barre du haut de chaque page (config.e
 
 with st.sidebar:
     st.markdown(ui.logo_menu(params["boutique_nom"]), unsafe_allow_html=True)
-    for section, items in MENU:
-        if section:
-            st.markdown(f"<p class='crm-menu-title'>{section}</p>", unsafe_allow_html=True)
+    for _, items in MENU:
         for cle, icone, libelle, _ in items:
-            texte = libelle
-            if cle == "Alertes" and compte[A.CRITIQUE] + compte[A.ATTENTION]:
-                texte += f" ({compte[A.CRITIQUE] + compte[A.ATTENTION]})"
-            if cle == "Dettes" and compte["dette_retard"]:
-                texte += f" ({compte['dette_retard']} en retard)"
             st.button(  # on_click : la page change avant la relance, sans 2e chargement
-                texte,
+                libelle,
                 key=f"menu_{cle}",
                 icon=icone,
                 width="stretch",
@@ -152,7 +145,21 @@ with st.sidebar:
                 on_click=config.aller_vers,
                 args=(cle,),
             )
-    st.markdown(ui.pied_menu(), unsafe_allow_html=True)
+    # Pastilles rouges des compteurs (alertes à traiter, dettes en retard)
+    pastilles = {"Alertes": compte[A.CRITIQUE] + compte[A.ATTENTION], "Dettes": compte["dette_retard"]}
+    st.markdown(
+        "<style>"
+        + "".join(
+            f".st-key-menu_{k} button::after{{content:'{v}';margin-left:auto;background:#ef4444;color:#fff;"
+            "font-size:.72rem;font-weight:700;min-width:20px;height:20px;border-radius:999px;display:grid;"
+            "place-items:center;padding:0 6px}"
+            for k, v in pastilles.items()
+            if v
+        )
+        + "</style>",
+        unsafe_allow_html=True,
+    )
+    st.markdown(ui.pied_menu(params["boutique_nom"]), unsafe_allow_html=True)
     auth.bouton_deconnexion()
 
 if "flash" in st.session_state:

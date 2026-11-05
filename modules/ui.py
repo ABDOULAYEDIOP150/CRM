@@ -166,7 +166,7 @@ def liste_alertes(alertes):
 
 # ---------------------------------------------------------------- Menu latéral & barre du haut
 LOGO_SVG = (
-    "<svg width='52' height='44' viewBox='0 0 52 44' aria-hidden='true'>"
+    "<svg width='64' height='54' viewBox='0 0 52 44' aria-hidden='true'>"
     "<path d='M4 22 L26 4 L48 22' fill='none' stroke='#f59e0b' stroke-width='4' stroke-linecap='round' "
     "stroke-linejoin='round'/>"
     "<rect x='11' y='20' width='30' height='20' rx='3' fill='#1e3a8a' stroke='#fff' stroke-width='2'/>"
@@ -188,13 +188,16 @@ DRAPEAU_SN = (
 
 def logo_menu(nom_boutique):
     return (
-        f"<div class='menu-logo'>{LOGO_SVG}<div><div class='menu-nom'>{escape(nom_boutique)}</div>"
-        f"<span class='menu-badge'>CRM</span></div></div>"
+        f"<div class='menu-logo'>{LOGO_SVG}<div class='menu-nom'>{escape(nom_boutique)}</div>"
+        f"<div class='menu-sous'>CRM PRO</div></div>"
     )
 
 
-def pied_menu():
-    return f"<div class='menu-pied'>{DRAPEAU_SN}</div>"
+def pied_menu(nom_boutique):
+    return (
+        f"<div class='menu-pied'>{DRAPEAU_SN}<div class='menu-pied-nom'>{escape(nom_boutique)}</div>"
+        f"<div class='menu-statut'><i></i>En ligne</div></div>"
+    )
 
 
 def barre_haut(titre, sous_titre, lieu, nb_alertes, boutique):
@@ -208,3 +211,93 @@ def barre_haut(titre, sous_titre, lieu, nb_alertes, boutique):
         f"<span class='haut-user'><span class='avatar' style='--c:#1e3a8a'>{escape(_initiales(boutique))}</span>"
         f"<span>{escape(boutique)}<small>Administrateur</small></span></span></div></div>"
     )
+
+
+# ---------------------------------------------------------------- Tableau de bord (maquette « Gestion Pro »)
+COULEUR_MODE = {
+    "Espèces": VERT,
+    "Wave": "#1dc4ff",
+    "Orange Money": "#ff7900",
+    "Free Money": "#e11d48",
+    "Carte bancaire": VIOLET,
+    "Virement": "#0891b2",
+    "Chèque": "#64748b",
+}
+
+
+def titre_page(titre, sous_titre):
+    return f"<div class='dash-titre'><h1>{escape(titre)}</h1><p>{escape(sous_titre)}</p></div>"
+
+
+def utilisateur(nb_alertes, boutique):
+    badge = f"<span class='cloche-nb'>{nb_alertes}</span>" if nb_alertes else ""
+    return (
+        f"<div class='dash-user'><span class='haut-cloche' title='Alertes'>{icone('cloche', 22)}{badge}</span>"
+        f"<span class='avatar' style='--c:#1e3a8a'>{escape(_initiales(boutique))}</span>"
+        f"<span class='dash-user-nom'>{escape(boutique)}<small>Administrateur</small></span></div>"
+    )
+
+
+def repartition_paiements(par_mode):
+    total = sum(par_mode.values())
+    if total:
+        puces = "".join(
+            f"<span class='rp-puce'><i style='--c:{COULEUR_MODE.get(m, '#64748b')}'></i>{escape(m)} <b>{v / total:.0%}</b></span>"
+            for m, v in list(par_mode.items())[:4]
+        )
+    else:
+        puces = "<span class='rp-puce'>Aucun encaissement</span>"
+    return (
+        f"<div class='rp'>{icone('carte', 18, BLEU)}<span class='rp-t'>Répartition des paiements :</span>{puces}</div>"
+    )
+
+
+def variation(v, libelle):
+    if v is None:
+        return ""
+    sens = "up" if v >= 0 else "down"
+    return f"<span class='var {sens}'>{'↑ +' if v >= 0 else '↓ '}{v:.0f} % {escape(libelle)}</span>"
+
+
+def pastille(texte, couleur):
+    return f"<span class='pas' style='--c:{couleur}'>{escape(texte)}</span>"
+
+
+def grille_kpi(cartes):
+    """cartes : [(titre, valeur affichée, icône, couleur, pied html, alerte)] -> une rangée de cartes égales."""
+    html = []
+    for titre, valeur, nom_icone, couleur, pied, alerte in cartes:
+        html.append(
+            f"<div class='k{' alerte' if alerte else ''}' style='--c:{couleur}'>"
+            f"<div class='k-haut'><span class='k-ico'>{icone(nom_icone, 18, '#fff')}</span>"
+            f"<span class='k-t'>{escape(titre)}</span></div>"
+            f"<div class='k-v'>{escape(valeur)}</div><div class='k-pied'>{pied}</div></div>"
+        )
+    return f"<div class='k-grille'>{''.join(html)}</div>"
+
+
+def tableau(colonnes, lignes, droite=(), classes_lignes=None):
+    """Tableau HTML stylé. droite : indices des colonnes alignées à droite (montants)."""
+    tete = "".join(f"<th class='{'d' if i in droite else ''}'>{escape(c)}</th>" for i, c in enumerate(colonnes))
+    corps = []
+    for n, ligne in enumerate(lignes):
+        cls = (classes_lignes or {}).get(n, "")
+        cellules = "".join(f"<td class='{'d' if i in droite else ''}'>{v}</td>" for i, v in enumerate(ligne))
+        corps.append(f"<tr class='{cls}'>{cellules}</tr>")
+    return f"<table class='tb'><thead><tr>{tete}</tr></thead><tbody>{''.join(corps)}</tbody></table>"
+
+
+COULEURS_TRANCHES = [VERT, ORANGE, "#ea580c", ROUGE]
+
+
+def barres_montants(valeurs, couleurs=None):
+    """Barres horizontales avec montant (ex. ancienneté des dettes)."""
+    maxi = max(valeurs.values(), default=0) or 1
+    html = []
+    for i, (lib, v) in enumerate(valeurs.items()):
+        c = (couleurs or PALETTE)[i % len(couleurs or PALETTE)]
+        html.append(
+            f"<div class='barre'><div class='barre-haut'><span>{escape(lib)}</span><b>{fmt_money(v)}</b></div>"
+            f"<div class='barre-fond'><div class='barre-plein' style='width:{v / maxi * 100:.1f}%;--c:{c}'></div></div></div>"
+        )
+    return "".join(html)

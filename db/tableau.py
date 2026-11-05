@@ -42,20 +42,26 @@ def resume_ventes(session, debut, fin):
     ca = sum(totaux.values())
     benefice, marge_connue = 0.0, True
     par_categorie, par_produit = defaultdict(float), defaultdict(lambda: [0, 0.0])
+    marge_categorie = defaultdict(float)
     for _, remise, st, lv in ventes.values():
         part_remise = remise / st if st else 0
         for q, pu, cout, nom, cat, pa in lv:
             montant = pu * q * (1 - part_remise)
-            par_categorie[(cat if nom is not None else None) or "Divers"] += montant
+            categorie = (cat if nom is not None else None) or "Divers"
+            par_categorie[categorie] += montant
             if nom is not None:
                 par_produit[nom][0] += q
                 par_produit[nom][1] += montant
             if cout is not None:  # coût réel des lots vendus
-                benefice += montant - cout
+                gain = montant - cout
             elif nom is not None and pa:  # anciennes ventes : prix d'achat moyen
-                benefice += montant - pa * q
+                gain = montant - pa * q
             else:
+                gain = None
                 marge_connue = False
+            if gain is not None:
+                benefice += gain
+                marge_categorie[categorie] += gain
     a_credit = (
         {i for (i,) in session.query(Dette.vente_id).filter(Dette.vente_id.in_(list(ventes)))} if ventes else set()
     )
@@ -72,6 +78,7 @@ def resume_ventes(session, debut, fin):
         "par_mode": dict(sorted(par_mode.items(), key=lambda x: -x[1])),
         "credit": sum(t for vid, t in totaux.items() if vid in a_credit),
         "par_categorie": dict(sorted(par_categorie.items(), key=lambda x: -x[1])),
+        "marge_par_categorie": dict(sorted(marge_categorie.items(), key=lambda x: -x[1])),
         "par_produit": sorted(((k, q, m) for k, (q, m) in par_produit.items()), key=lambda x: -x[2]),
         "clients": len({v[0] for v in ventes.values()}),
     }
