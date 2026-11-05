@@ -11,7 +11,7 @@ import re
 import unicodedata
 from datetime import datetime
 
-from .models import LotStock, MouvementStock, Produit
+from .models import LotStock, MouvementStock, Produit, Vente, VenteProduit
 
 
 class ErreurStock(ValueError):
@@ -154,6 +154,44 @@ def fixer_stock(session, produit, nouveau, type_="Inventaire", note=""):
     """Inventaire : met le stock à la quantité réellement comptée (écart journalisé)."""
     _reprendre(session, produit)
     return mouvement(session, produit, int(nouveau) - (produit.stock or 0), type_, note)
+
+
+def corriger_prix_lot(session, lot, nouveau):
+    """Corrige un prix d'achat mal saisi : le lot, le prix moyen du produit et le coût des ventes déjà faites.
+
+    Les unités vendues de ce lot sont retrouvées dans l'ordre FIFO : les ventes les plus récentes ont d'abord
+    pris les lots plus récents, puis celui-ci.
+    """
+    nouveau, ancien = float(nouveau), float(lot.prix_achat)
+    if nouveau < 0 or nouveau == ancien:
+        return 0
+    produit = lot.produit
+    vendu = lot.quantite - lot.restant
+    plus_recents = [l for l in produit.lots if (l.date, l.id or 0) > (lot.date, lot.id or 0)]
+    a_sauter = sum(l.quantite - l.restant for l in plus_recents)
+    lignes = (
+        session.query(VenteProduit)
+        .join(Vente, Vente.id == VenteProduit.vente_id)
+        .filter(VenteProduit.produit_id == produit.id, Vente.date >= lot.date)
+        .order_by(Vente.date.desc(), Vente.id.desc())
+        .all()
+    )
+    for ligne in lignes:
+        if vendu <= 0:
+            break
+        q = ligne.quantite
+        saute = min(a_sauter, q)
+        a_sauter -= saute
+        pris = min(q - saute, vendu)
+        if pris > 0 and ligne.cout is not None:
+            ligne.cout += pris * (nouveau - ancien)
+        vendu -= max(pris, 0)
+    lot.prix_achat = nouveau
+    recalculer(produit)
+    if not produit.stock and lot is produit.lots[-1]:
+        produit.prix_achat = nouveau
+    _journal(session, produit, 0, "Correction", f"prix d'achat corrigé : {round(ancien)} → {round(nouveau)}", None)
+    return nouveau - ancien
 
 
 def synchroniser_lots(session):

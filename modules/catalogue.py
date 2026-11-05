@@ -13,7 +13,7 @@ import config
 from config import fmt_money
 from db import import_produits as I
 from db.models import HistoriqueVente, Produit, VenteProduit, get_session
-from db.stock import fixer_stock, generer_code
+from db.stock import corriger_prix_lot, fixer_stock, generer_code
 from db.utils import get_param
 from modules.produits import mouvements
 from modules.tableaux import styliser
@@ -365,6 +365,99 @@ def dialog_modifier(produit_id=None):
             st.rerun()
         if utilise:
             b.caption("Déjà utilisé, non supprimable.")
+
+
+@st.dialog("Corriger le prix", width="large")
+def dialog_prix(produit_id):
+    """Le produit concerné directement : son prix de vente et ses prix d'achat, modifiables ici."""
+    with get_session() as session:
+        p = session.get(Produit, produit_id)
+        if p is None:
+            st.error("Produit introuvable.")
+            return
+        unite = p.unite or "pièce"
+        st.markdown(f"#### {p.nom}")
+        st.caption(f"{p.reference} · en stock : {p.stock or 0} {config.unite_pl(p.stock or 0, unite)}")
+
+        lots = list(reversed(p.lots[-8:]))
+        st.markdown("##### Prix d'achat")
+        if lots:
+            df = pd.DataFrame(
+                [
+                    {
+                        "id": l.id,
+                        "Date": l.date.strftime("%d/%m/%Y"),
+                        "Fournisseur": l.fournisseur or "",
+                        "Quantité": l.quantite,
+                        "Reste": l.restant,
+                        "Prix d'achat": int(l.prix_achat),
+                    }
+                    for l in lots
+                ]
+            )
+            edite = st.data_editor(
+                df,
+                hide_index=True,
+                width="stretch",
+                key=f"lots_prix_{p.id}",
+                disabled=["Date", "Fournisseur", "Quantité", "Reste"],
+                column_order=["Date", "Fournisseur", "Quantité", "Reste", "Prix d'achat"],
+                column_config={
+                    "Prix d'achat": st.column_config.NumberColumn(
+                        f"Prix d'achat / {unite}", min_value=0, step=50, format="localized"
+                    )
+                },
+            )
+            st.caption(
+                "Prix mal saisi : tapez le bon prix dans la ligne. Deux fournisseurs, deux prix : laissez tel quel."
+            )
+        else:
+            edite = None
+            st.caption("Aucun achat enregistré pour ce produit.")
+
+        nouveaux = {}
+        if edite is not None:
+            for _, r in edite.iterrows():
+                v = _entier(r["Prix d'achat"])
+                lot = next(l for l in lots if l.id == r["id"])
+                if v != int(lot.prix_achat):
+                    nouveaux[lot.id] = v
+        for l in (x for x in lots if p.prix and nouveaux.get(x.id, x.prix_achat) > p.prix):
+            st.markdown(
+                f"<div class='crm-alert' style='--c:{config.DANGER_RED}'><b>Achat du {l.date:%d/%m/%Y}</b>"
+                f"{' · ' + l.fournisseur if l.fournisseur else ''} : {fmt_money(l.prix_achat)} par {unite},"
+                f" plus cher que le prix de vente</div>",
+                unsafe_allow_html=True,
+            )
+        restants = [(l.restant, nouveaux.get(l.id, l.prix_achat)) for l in p.lots if l.restant > 0]
+        cout = (
+            round(sum(q * c for q, c in restants) / sum(q for q, _ in restants))
+            if restants
+            else (next(iter(nouveaux.values())) if nouveaux else int(p.prix_achat or 0))
+        )
+
+        st.markdown("##### Prix de vente")
+        taux = float(get_param("marge_defaut") or 20)
+        propose = int(round(cout * (1 + taux / 100), -1))
+        a, b = st.columns([1, 1.4], vertical_alignment="bottom")
+        pv = a.number_input(
+            f"Prix de vente / {unite}", min_value=0, step=50, value=int(p.prix or 0), key=f"pv_corr_{p.id}"
+        )
+        b.caption(f"Coût d'achat : {fmt_money(cout)}. Avec {taux:.0f} % de marge : {fmt_money(propose)}.")
+        if pv and pv < cout:
+            st.error(f"Encore à perte : {fmt_money(cout - pv)} perdus par {unite}.")
+        elif pv:
+            st.success(f"Bénéfice : {fmt_money(pv - cout)} par {unite} ({(pv - cout) / pv:.0%}).")
+
+        if st.button("Enregistrer", type="primary", width="stretch", icon=":material/check:", key=f"ok_prix_{p.id}"):
+            for lot in lots:
+                if lot.id in nouveaux:
+                    corriger_prix_lot(session, lot, nouveaux[lot.id])
+            p.prix = pv
+            session.commit()
+            st.session_state.pop("editeur_catalogue", None)
+            config.flash(f"Prix de {p.nom} corrigé.")
+            st.rerun()
 
 
 # ------------------------------------------------------------------ Import Excel

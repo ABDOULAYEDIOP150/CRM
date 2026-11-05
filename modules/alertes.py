@@ -30,7 +30,12 @@ def ligne_alerte(a, params, cle):
     if a.montant:
         milieu.markdown(f"**{fmt_money(a.montant)}**")
     b1, b2 = droite.columns(2)
-    if a.page:
+    if a.type == "perte" and a.produit_id:
+        if b1.button(a.action, key=f"act_{cle}", width="stretch"):
+            from modules.catalogue import dialog_prix
+
+            dialog_prix(a.produit_id)
+    elif a.page:
         etat = {**a.etat, **({"produit_cible": a.produit_id} if a.produit_id else {})}
         config.bouton_page(b1, a.action, a.page, etat=etat, key=f"act_{cle}", width="stretch")
     if a.dette is not None:

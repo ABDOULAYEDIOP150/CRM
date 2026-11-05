@@ -99,3 +99,29 @@ def test_client_saisi_conserve_apres_redemarrage(db_url):
 )
 def test_adresse_normalisee(copiee, attendue):
     assert normaliser_url(copiee) == attendue
+
+
+def test_corriger_un_prix_d_achat_mal_saisi(db_url):
+    """36 000 tapé au lieu de 11 000 : la correction répare le lot, le prix moyen et la marge des ventes faites."""
+    from db.models import Client, Produit, Vente, VenteProduit, get_session
+    from db.stock import corriger_prix_lot, entree_stock, sortie_stock
+
+    with get_session(db_url) as s:
+        p = Produit(nom="Sable de mer", prix=15000, stock=0, unite="m³")
+        c = Client(nom="Awa", telephone="770000000")
+        s.add_all([p, c])
+        s.flush()
+        entree_stock(s, p, 5, 11000, 15000, "SOCOCIM")
+        lot = entree_stock(s, p, 3, 36000, 15000, "Autre")
+        v = Vente(client_id=c.id)
+        s.add(v)
+        s.flush()
+        cout = sortie_stock(s, p, 6, "Vente")  # 5 du 1er lot + 1 du lot mal saisi
+        s.add(VenteProduit(vente_id=v.id, produit_id=p.id, quantite=6, prix_unit=15000, cout=cout))
+        s.commit()
+        assert cout == 5 * 11000 + 36000
+        corriger_prix_lot(s, lot, 12000)
+        s.commit()
+        ligne = s.query(VenteProduit).one()
+        assert ligne.cout == 5 * 11000 + 12000
+        assert p.prix_achat == 12000 and lot.prix_achat == 12000

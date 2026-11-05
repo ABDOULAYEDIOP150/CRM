@@ -148,7 +148,7 @@ def _kpis(p, prec, dettes, stock, periode):
                 ("Chiffre d'affaires", fmt_money(p["ca"]), "panier", ui.BLEU,
                  ui.variation(T.variation(p["ca"], prec["ca"]), comparaison), False),
                 ("Marge brute", fmt_money(p["benefice"]), "hausse", ui.VERT,
-                 ui.pastille(f"{taux:.1%}".replace(".", ","), ui.VERT) if p["ca"] else "", False),
+                 ui.pastille(f"{taux:.1%}".replace(".", ","), ui.VERT if taux >= 0 else ui.ROUGE) if p["ca"] else "", p["benefice"] < 0),
                 ("Encaissements", fmt_money(p["encaisse"]), "portefeuille", "#16a34a",
                  ui.variation(T.variation(p["encaisse"], prec["encaisse"]), comparaison), False),
                 ("Créances clients", fmt_money(du), "clients", ui.ORANGE,
@@ -191,21 +191,18 @@ def _a_recommander(stock):
     if not liste:
         st.success("Aucun produit sous le seuil.")
         return
-    largeurs = [1.9, 0.85, 0.8, 1.85]
-    with st.container(key="reco_tete"):
-        for col, lib in zip(st.columns(largeurs, vertical_alignment="center"), ["Produit", "Stock", "Seuil", "Action"],
-                            strict=True):  # fmt: skip
-            col.markdown(f"<span class='reco-th'>{lib}</span>", unsafe_allow_html=True)
     seuil_defaut = int(get_params()["seuil_stock"])
     for p in liste[:12]:
         with st.container(key=f"reco_ligne_{p.id}"):
-            c = st.columns(largeurs, vertical_alignment="center")
-            c[0].markdown(f"<span class='reco-nom' title='{escape(p.nom)}'>{escape(p.nom)}</span>",
-                          unsafe_allow_html=True)  # fmt: skip
+            g, d = st.columns([1.4, 1.1], vertical_alignment="center")
             classe = "zero" if (p.stock or 0) <= 0 else "bas"
-            c[1].markdown(f"<span class='reco-n {classe}'>{p.stock or 0}</span>", unsafe_allow_html=True)
-            c[2].markdown(f"<span class='reco-n'>{p.seuil(seuil_defaut)}</span>", unsafe_allow_html=True)
-            config.bouton_page(c[3], "Commander", "Entrees", etat={"produit_cible": p.id}, key=f"cmd_{p.id}",
+            g.markdown(
+                f"<span class='reco-nom' title='{escape(p.nom)}'>{escape(p.nom)}</span>"
+                f"<span class='reco-sous'>reste <b class='reco-n {classe}'>{p.stock or 0}</b>"
+                f" · seuil {p.seuil(seuil_defaut)}</span>",
+                unsafe_allow_html=True,
+            )
+            config.bouton_page(d, "Commander", "Entrees", etat={"produit_cible": p.id}, key=f"cmd_{p.id}",
                                type="primary", width="stretch")  # fmt: skip
 
 

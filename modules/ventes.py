@@ -1,5 +1,6 @@
 """Caisse : recherche et cartes produits à gauche, ticket (client, panier, règlement) fixe à droite."""
 
+from dataclasses import dataclass
 from datetime import date, datetime, timedelta
 
 import streamlit as st
@@ -20,6 +21,74 @@ PAR_PAGE = 24
 MODES_RAPIDES = ["Espèces", "Wave", "Orange Money", "Autre"]
 
 
+@dataclass(frozen=True)
+class ProduitCaisse:
+    """Copie légère d'un produit pour la caisse : lue une fois, réutilisée à chaque clic."""
+
+    id: int
+    nom: str
+    reference: str
+    prix: float
+    stock: int
+    unite: str
+    categorie: str
+    seuil_alerte: int | None
+
+    def seuil(self, defaut):
+        return self.seuil_alerte if self.seuil_alerte is not None else defaut
+
+
+@dataclass(frozen=True)
+class ClientCaisse:
+    id: int
+    nom: str
+    telephone: str
+    plafond_credit: float | None
+
+
+def _produits():
+    """Produits de la caisse, relus seulement après un enregistrement (vente, achat, modification)."""
+
+    def calcul():
+        with get_session() as s:
+            q = s.query(
+                Produit.id, Produit.nom, Produit.reference, Produit.prix, Produit.stock, Produit.unite,
+                Produit.categorie, Produit.seuil_alerte,
+            ).order_by(Produit.nom)  # fmt: skip
+            return [
+                ProduitCaisse(i, n, r or "", p or 0, st_ or 0, u or "pièce", c or "Divers", sa)
+                for i, n, r, p, st_, u, c, sa in q
+            ]
+
+    return memoire("caisse_produits", calcul)
+
+
+def _par_id():
+    return {p.id: p for p in _produits()}
+
+
+def _clients():
+    def calcul():
+        with get_session() as s:
+            q = s.query(Client.id, Client.nom, Client.telephone, Client.plafond_credit)
+            q = q.filter(Client.nom != CLIENT_PASSAGE).order_by(Client.nom)
+            return [ClientCaisse(*r) for r in q]
+
+    return memoire("caisse_clients", calcul)
+
+
+def _infos_client(client_id):
+    def calcul():
+        with get_session() as s:
+            return (
+                D.encours_client(s, client_id),
+                D.client_en_retard(s, client_id),
+                s.query(func.count(Vente.id)).filter(Vente.client_id == client_id).scalar(),
+            )
+
+    return memoire(("caisse_client", client_id), calcul)
+
+
 def _panier():
     return st.session_state.setdefault("panier", {})  # {produit_id: quantité}
 
@@ -33,14 +102,13 @@ def _vider_panier():
 def _ajouter(pid):
     """Callback : +1 au panier (avant la relance, donc carte et ticket sont à jour au même affichage)."""
     panier = _panier()
-    with get_session() as s:
-        p = s.get(Produit, pid)
-        if p and (p.stock or 0) > panier.get(pid, 0):
-            panier[pid] = panier.get(pid, 0) + 1
-            st.session_state[f"q_{pid}"] = panier[pid]
-            st.session_state["toast_vente"] = (f"{p.nom} ajouté au panier", ":material/add_shopping_cart:")
-        elif p:
-            st.session_state["toast_vente"] = (f"Plus de stock pour {p.nom}", ":material/warning:")
+    p = _par_id().get(pid)  # pas de requête : la liste est déjà en mémoire
+    if p and (p.stock or 0) > panier.get(pid, 0):
+        panier[pid] = panier.get(pid, 0) + 1
+        st.session_state[f"q_{pid}"] = panier[pid]
+        st.session_state["toast_vente"] = (f"{p.nom} ajouté", ":material/add_shopping_cart:")
+    elif p:
+        st.session_state["toast_vente"] = (f"Plus de stock pour {p.nom}", ":material/warning:")
 
 
 def _changer(pid, delta, stock):
@@ -82,28 +150,38 @@ def _plus_vendus():
 
 
 def show_ventes():
+    if st.session_state.get("derniere_vente"):
+        with get_session() as session:
+            _confirmation(session, st.session_state["derniere_vente"])
+        return
+    config.entete("Nouvelle vente", "Produits, client, règlement")
+    _caisse()
+
+
+@st.fragment
+def _caisse():
+    """Seule la caisse se recharge à chaque clic (pas le menu ni le reste de la page) : c'est instantané."""
     if "toast_vente" in st.session_state:
         texte, icone = st.session_state.pop("toast_vente")
         st.toast(texte, icon=icone)
-    with get_session() as session:
-        if st.session_state.get("derniere_vente"):
-            _confirmation(session, st.session_state["derniere_vente"])
-            return
-        config.entete("Nouvelle vente", "Produits, client, règlement")
-        gauche, droite = st.columns([1.85, 1], gap="medium")
-        with gauche:
-            _catalogue(session)
-        with droite:
-            _ticket(session)
+    gauche, droite = st.columns([1.85, 1], gap="medium")
+    with gauche:
+        _catalogue()
+    with droite:
+        _ticket()
+    if st.session_state.pop("_defiler_ticket", False):
+        config.defiler(".st-key-valider_vente")
 
 
 # ------------------------------------------------------------------ Catalogue
-def _catalogue(session):
+def _catalogue():
     panier = _panier()
-    tous = session.query(Produit).order_by(Produit.nom).all()
+    tous = _produits()
     if not tous:
         st.info("Aucun produit dans la base.")
-        config.bouton_page(st, "Ajouter des produits", "Catalogue")
+        if st.button("Ajouter des produits"):
+            config.aller_vers("Catalogue")
+            st.rerun()  # changement de page : toute l'application
         return
     par_id = {p.id: p for p in tous}
 
@@ -184,12 +262,17 @@ def _choix_mode(cle):
     return choix
 
 
-def _ticket(session):
+def _defiler_vers_validation():
+    st.session_state["_defiler_ticket"] = True
+
+
+def _ticket():
     panier = _panier()
+    par_id = _par_id()
     with st.container(key="ticket_vente"):
         # Client
         st.markdown("<div class='tk-titre'>Client</div>", unsafe_allow_html=True)
-        clients = session.query(Client).filter(Client.nom != CLIENT_PASSAGE).order_by(Client.nom).all()
+        clients = _clients()
         c1, c2 = st.columns([4, 1], vertical_alignment="center")
         with c1:
             client = config.choisir(
@@ -201,12 +284,10 @@ def _ticket(session):
                 label_visibility="collapsed",
             )
         with c2:
-            _nouveau_client_rapide(session)
+            _nouveau_client_rapide()
         encours = 0
         if client:
-            encours = D.encours_client(session, client.id)
-            retard = D.client_en_retard(session, client.id)
-            nb_achats = session.query(func.count(Vente.id)).filter(Vente.client_id == client.id).scalar()
+            encours, retard, nb_achats = _infos_client(client.id)
             st.markdown(ui.fiche_client_caisse(client, encours, retard, nb_achats), unsafe_allow_html=True)
 
         # Panier
@@ -225,7 +306,7 @@ def _ticket(session):
             st.markdown("<div class='tk-vide'>Panier vide</div>", unsafe_allow_html=True)
         sous_total = 0
         for pid in list(panier):
-            p = session.get(Produit, pid)
+            p = par_id.get(pid)
             if p is None:
                 panier.pop(pid)
                 continue
@@ -266,7 +347,7 @@ def _ticket(session):
         reglement = (
             st.segmented_control(
                 "Règlement", [COMPTANT, DETTE], default=COMPTANT, key="reglement", label_visibility="collapsed",
-                width="stretch",
+                width="stretch", on_change=_defiler_vers_validation,
             )
             or COMPTANT
         )  # fmt: skip
@@ -286,15 +367,16 @@ def _ticket(session):
             if client is None:
                 bloquant = "Choisissez le client pour une vente à crédit."
                 st.warning(bloquant)
-            acompte = st.number_input(
+            y1, y2 = st.columns(2)
+            acompte = y1.number_input(
                 "Avance versée aujourd'hui", min_value=0, max_value=max(int(total) - 1, 0), step=500, value=0
             )
+            nb = y2.number_input("Payer en combien de fois ?", min_value=1, max_value=36, value=1)
             if acompte:
                 mode = _choix_mode("mode_acompte")
             y1, y2 = st.columns(2)
-            nb = y1.number_input("Payer en combien de fois ?", min_value=1, max_value=36, value=1)
-            frequence = y2.selectbox("Tous les…", list(config.FREQUENCES), index=2)
-            date1 = st.date_input(
+            frequence = y1.selectbox("Tous les…", list(config.FREQUENCES), index=2)
+            date1 = y2.date_input(
                 "Date du 1er paiement", value=D.ajouter_mois(date.today(), 1), min_value=date.today(),
                 format="DD/MM/YYYY",
             )  # fmt: skip
@@ -319,10 +401,11 @@ def _ticket(session):
         libelle = "Valider la vente à crédit" if credit else "Valider la vente"
         if st.button(libelle, type="primary", width="stretch", disabled=bool(bloquant), key="valider_vente",
                      icon=":material/check:"):  # fmt: skip
-            _valider(session, client, panier, remise, total, credit, acompte, nb, frequence, date1, mode)
+            with get_session() as session:
+                _valider(session, client, panier, remise, total, credit, acompte, nb, frequence, date1, mode)
 
 
-def _nouveau_client_rapide(session):
+def _nouveau_client_rapide():
     with st.popover("", icon=":material/person_add:", help="Nouveau client", width="stretch"):
         with st.form("client_rapide", clear_on_submit=True):
             nom = st.text_input("Nom complet")
@@ -331,11 +414,12 @@ def _nouveau_client_rapide(session):
                 if not nom or not tel:
                     st.error("Nom et téléphone obligatoires.")
                     return
-                c = Client(nom=nom.strip(), telephone=tel.strip())
-                session.add(c)
-                session.commit()
-                st.session_state["vente_client"] = c.id
-                st.rerun()
+                with get_session() as session:
+                    c = Client(nom=nom.strip(), telephone=tel.strip())
+                    session.add(c)
+                    session.commit()
+                    st.session_state["vente_client"] = c.id
+                st.rerun(scope="fragment")
 
 
 def _valider(session, client, panier, remise, total, credit, acompte, nb, frequence, date1, mode):
@@ -393,7 +477,7 @@ def _valider(session, client, panier, remise, total, credit, acompte, nb, freque
         return
     _vider_panier()
     st.session_state["derniere_vente"] = vente.id
-    st.rerun()
+    st.rerun()  # toute l'application : menu (alertes, dettes) et page de confirmation
 
 
 # ------------------------------------------------------------------ Confirmation + documents

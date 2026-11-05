@@ -461,3 +461,10 @@ div[class*="st-key-q_"] [data-testid="stNumberInputContainer"] { min-height: 32p
 div[class*="st-key-q_"] button { display: none; }
 div[class*="st-key-del_"] button { min-height: 24px; padding: 0 .2rem; }
 div[class*="st-key-del_"] [data-testid="stIconMaterial"] { color: #94a3b8; }
+div[class*="st-key-js_defiler_"] { display: none; }
+/* Ticket de caisse : toujours visible en entier, défile à l'intérieur s'il est plus haut que l'écran */
+.st-key-ticket_vente { max-height: calc(100vh - 4.2rem); overflow-y: auto; overscroll-behavior: contain; }
+.reco-sous { display: block; font-size: .74rem; color: #64748b; margin-top: 1px; }
+.reco-sous .reco-n { font-size: .78rem; }
+div[class*="st-key-cmd_"] button { padding: .2rem .35rem; min-height: 2rem; }
+div[class*="st-key-cmd_"] button p { font-size: .78rem; white-space: nowrap; overflow: visible; }

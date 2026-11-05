@@ -50,8 +50,17 @@ def show_entrees():
 def _formulaire(session, produits):
     par_id = {p.id: p for p in produits}
     cible = st.session_state.pop("produit_cible", None)
-    if cible in par_id:
+    if cible in par_id:  # arrivée par « Commander » : produit, quantité et dernier fournisseur déjà remplis
+        p = par_id[cible]
+        seuil = p.seuil(int(get_param("seuil_stock") or 0))
         st.session_state["entree_produit"] = cible
+        st.session_state["entree_qte"] = max(2 * seuil - (p.stock or 0), 1)
+        st.session_state["entree_reassort"] = cible
+        fournisseur = next((l.fournisseur for l in reversed(p.lots) if l.fournisseur), None)
+        if fournisseur:
+            st.session_state["entree_fournisseur"] = fournisseur
+        else:
+            st.session_state.pop("entree_fournisseur", None)
     with config.carte():
         st.markdown("##### Produit")
         a, b = st.columns([4, 1], vertical_alignment="bottom")
@@ -74,10 +83,18 @@ def _formulaire(session, produits):
             return
         p = par_id[pid]
         unite = p.unite or "pièce"
+        if st.session_state.get("entree_reassort") == pid:
+            seuil = p.seuil(int(get_param("seuil_stock") or 0))
+            st.markdown(
+                f"<div class='crm-alert' style='--c:{config.WARNING_ORANGE}'><b>À commander</b> · il reste "
+                f"{p.stock or 0} {config.unite_pl(p.stock or 0, unite)} (seuil {seuil})</div>",
+                unsafe_allow_html=True,
+            )
 
         st.markdown("##### Achat")
         c1, c2 = st.columns(2)
-        quantite = c1.number_input(f"Quantité achetée ({unite})", min_value=1, step=1, value=1, key="entree_qte")
+        st.session_state.setdefault("entree_qte", 1)
+        quantite = c1.number_input(f"Quantité achetée ({unite})", min_value=1, step=1, key="entree_qte")
         mode_prix = (
             c2.segmented_control("Je connais…", [PAR_UNITE, TOTAL], default=PAR_UNITE, key="entree_mode") or PAR_UNITE
         )
@@ -101,7 +118,7 @@ def _formulaire(session, produits):
         fournisseur = f1.selectbox(
             "Fournisseur (facultatif)",
             fournisseurs,
-            index=None,
+            index=None if "entree_fournisseur" not in st.session_state else 0,
             accept_new_options=True,
             placeholder="Choisir ou taper un nom",
             key="entree_fournisseur",

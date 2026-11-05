@@ -222,6 +222,24 @@ def aller_vers(page, etat=None):
     st.session_state.update(etat or {})
 
 
+def defiler(selecteur=None, delai=120):
+    """Fait défiler la page : en haut (selecteur=None) ou jusqu'à l'élément CSS donné."""
+    import time
+
+    if selecteur:
+        js = f"var e=document.querySelector({selecteur!r});if(e)e.scrollIntoView({{block:'end',behavior:'smooth'}});"
+    else:
+        js = (
+            "document.querySelectorAll('[data-testid=stMain],[data-testid=stAppViewContainer],section.main')"
+            ".forEach(function(e){e.scrollTo({top:0});});window.scrollTo({top:0});"
+        )
+    with st.container(key=f"js_defiler_{selecteur is None}"):
+        st.html(
+            f"<script>/*{time.time()}*/setTimeout(function(){{{js}}},{delai});</script>",
+            unsafe_allow_javascript=True,
+        )
+
+
 def bouton_page(conteneur, label, page, etat=None, **kwargs):
     """Bouton qui ouvre une page en un seul chargement."""
     return conteneur.button(label, on_click=aller_vers, args=(page, etat), **kwargs)

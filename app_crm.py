@@ -142,3 +142,8 @@ if "flash" in st.session_state:
     st.toast(st.session_state.pop("flash"), icon=":material/check_circle:")
 
 PAGES[page]()
+
+# Nouvelle page : on repart du haut (sinon Streamlit garde la position de défilement de la page précédente)
+if st.session_state.get("_page_affichee") != page:
+    st.session_state["_page_affichee"] = page
+    config.defiler()

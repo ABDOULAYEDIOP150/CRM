@@ -210,3 +210,32 @@ def test_caisse_moins_plus_et_filtres():
     assert affiches and not (affiches & ruptures)
     at.button_group(key="filtre_vente").set_value("Plus vendus").run()
     assert not at.exception, at.exception
+
+
+def test_commander_remplit_l_achat():
+    """« Commander » ouvre l'achat avec le produit, une quantité proposée et le dernier fournisseur."""
+    from db.models import Produit, get_session
+
+    with get_session() as s:
+        p = s.query(Produit).filter(Produit.stock > 0).first()
+        pid, stock, seuil = p.id, p.stock, p.seuil(5)
+    at = _app()
+    at.session_state["page"] = "Entrees"
+    at.session_state["produit_cible"] = pid
+    at.run()
+    assert not at.exception, at.exception
+    assert at.selectbox(key="entree_produit").value == pid
+    assert at.number_input(key="entree_qte").value == max(2 * seuil - stock, 1)
+    assert any("À commander" in m.value for m in at.markdown)
+    assert not at.warning  # pas d'avertissement Streamlit sur les valeurs pré-remplies
+
+
+def test_validation_visible_apres_choix_du_reglement():
+    """Choisir « À crédit » affiche l'échéancier et fait défiler jusqu'au bouton de validation."""
+    at = _app()
+    at.session_state["page"] = "Ventes"
+    at.run()
+    at.button_group(key="reglement").set_value("À crédit (dette)").run()
+    assert not at.exception, at.exception
+    assert any("combien de fois" in n.label for n in at.number_input)
+    assert any("scrollIntoView" in h.proto.body for h in at.get("html"))
