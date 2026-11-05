@@ -228,6 +228,9 @@ def situation_dette(dette, aujourdhui=None):
 
 
 def dettes_actives(session):
+    """Dettes en cours. Un écran qui ne fait que lire peut les partager (session.info["dettes_actives"])."""
+    if "dettes_actives" in session.info:
+        return session.info["dettes_actives"]
     return session.query(Dette).filter(Dette.statut == "en_cours").all()
 
 

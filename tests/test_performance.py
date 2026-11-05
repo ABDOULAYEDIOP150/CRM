@@ -83,3 +83,32 @@ def test_export_excel(db_url):
         _remplir(s, 2)
     feuilles = pd.read_excel(io.BytesIO(_export_excel(init_db(db_url))), sheet_name=None)
     assert len(feuilles["clients"]) == 2 and len(feuilles["dettes"]) == 2
+
+
+def test_memoire_invalidee_a_chaque_enregistrement(db_url, monkeypatch):
+    """Les paramètres et alertes gardés en mémoire sont recalculés dès qu'on enregistre quelque chose."""
+    import db.models as m
+    from db import alertes as A
+    from db.utils import get_params, set_params
+
+    monkeypatch.setattr(m, "DB_URL", db_url)
+    init_db(db_url)
+    assert get_params()["boutique_nom"] == "Ma Boutique"
+    set_params({"boutique_nom": "Quincaillerie Fall"})
+    assert get_params()["boutique_nom"] == "Quincaillerie Fall"  # pas de valeur périmée
+
+    params = {**get_params(), **PARAMS}
+    assert A.compter(A.alertes_memorisees(params))["dette_retard"] == 0
+    with get_session(db_url) as s:
+        _remplir(s, 2)  # dettes avec échéance dépassée -> retards
+    assert A.compter(A.alertes_memorisees(params))["dette_retard"] == 2
+
+
+def test_lectures_en_parallele(db_url):
+    from db.models import en_parallele
+
+    with get_session(db_url) as s:
+        _remplir(s, 3)
+    r = en_parallele({"clients": lambda s: s.query(Client).count(), "produits": lambda s: s.query(Produit).count()},
+                     url=db_url)  # fmt: skip
+    assert r == {"clients": 3, "produits": 3}

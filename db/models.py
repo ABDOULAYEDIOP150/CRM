@@ -11,10 +11,11 @@ from sqlalchemy import (
     String,
     Text,
     create_engine,
+    event,
     inspect,
     text,
 )
-from sqlalchemy.orm import declarative_base, relationship, sessionmaker
+from sqlalchemy.orm import Session, declarative_base, relationship, sessionmaker
 
 Base = declarative_base()
 
@@ -248,6 +249,35 @@ class Parametre(Base):
 # ========== Moteur & sessions ==========
 _ENGINES = {}
 
+# ---------- Version des données (pour la mémoire des calculs) ----------
+# Chaque enregistrement en base (commit) fait avancer ce compteur. Les calculs coûteux affichés à chaque
+# clic (paramètres, alertes du menu…) sont gardés tant que le compteur n'a pas bougé : un clic qui ne
+# change rien ne refait aucune requête. L'application tourne dans un seul processus, le compteur est
+# donc commun à tous les utilisateurs connectés.
+_VERSION = [0]
+
+
+@event.listens_for(Session, "after_commit")
+def _donnees_modifiees(session):
+    _VERSION[0] += 1
+
+
+def version_donnees():
+    return _VERSION[0]
+
+
+def memoire(cle, calcul, taille=32):
+    """Résultat de calcul() gardé pour (cle, version des données, base). Recalculé dès qu'un commit a eu lieu."""
+    k = (cle, _VERSION[0], DB_URL)
+    if k not in _MEMOIRE:
+        if len(_MEMOIRE) >= taille:
+            _MEMOIRE.clear()
+        _MEMOIRE[k] = calcul()
+    return _MEMOIRE[k]
+
+
+_MEMOIRE = {}
+
 
 def _migrer(engine):
     """Ajoute les colonnes manquantes aux tables existantes (bases créées avec l'ancienne version)."""
@@ -281,6 +311,26 @@ def init_db(url=None):
             synchroniser_lots(s)
             s.commit()
     return _ENGINES[url]
+
+
+def en_parallele(taches, url=None, max_simultanees=6):
+    """Exécute des lectures indépendantes en même temps : {nom: fonction(session)} -> {nom: résultat}.
+
+    Avec une base en ligne, chaque requête attend un aller-retour réseau ; lancer les blocs d'un écran
+    en parallèle (une connexion chacun) ramène l'attente à celle du bloc le plus long.
+    Réservé à la lecture : chaque bloc a sa propre session, rien n'y est enregistré.
+    """
+    from concurrent.futures import ThreadPoolExecutor
+
+    init_db(url)  # moteur prêt avant de lancer les fils
+
+    def lancer(fonction):
+        with get_session(url) as s:
+            return fonction(s)
+
+    with ThreadPoolExecutor(max_workers=min(max_simultanees, len(taches))) as ex:
+        futurs = {nom: ex.submit(lancer, f) for nom, f in taches.items()}
+        return {nom: f.result() for nom, f in futurs.items()}
 
 
 def get_session(url=None):

@@ -50,11 +50,11 @@ def show_dettes():
         if a.button(
             "➕ Nouvelle dette",
             type="primary",
-            use_container_width=True,
+            width="stretch",
             help="Dette sans vente : ancienne dette du cahier, argent prêté…",
         ):
             _dialog_nouvelle_dette()
-        config.bouton_page(b, "🛒 Vente à crédit", "Ventes", use_container_width=True)
+        config.bouton_page(b, "🛒 Vente à crédit", "Ventes", width="stretch")
 
         vue = st.segmented_control("Vue", VUES, default=VUES[0], key="vue_dettes", label_visibility="collapsed")
         vue = vue or VUES[0]
@@ -114,7 +114,7 @@ def _liste(session, params, vue):
     event = st.dataframe(
         df,
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
         on_select="rerun",
         selection_mode="single-row",
         key=f"table_dettes_{vue}",
@@ -165,21 +165,21 @@ def _detail(session, dette, params):
 
     actif = dette.statut == "en_cours" and dette.reste > 0
     b = st.columns(4)
-    if actif and b[0].button("💰 Encaisser un versement", type="primary", use_container_width=True):
+    if actif and b[0].button("💰 Encaisser un versement", type="primary", width="stretch"):
         _dialog_versement(dette.id)
     b[1].download_button(
         "✍️ Reconnaissance de dette",
         documents.reconnaissance_dette(dette, params),
         f"Reconnaissance_dette_D-{dette.id:05d}.pdf",
         "application/pdf",
-        use_container_width=True,
+        width="stretch",
     )
     b[2].download_button(
         "📄 Relevé du client",
         documents.releve_client(c, params),
         f"Releve_{c.nom}.pdf",
         "application/pdf",
-        use_container_width=True,
+        width="stretch",
     )
     if actif:
         msg = D.message_relance(
@@ -193,7 +193,7 @@ def _detail(session, dette, params):
         )
         lien = D.lien_whatsapp(c.telephone, msg)
         if lien:
-            b[3].link_button("📲 Relancer (WhatsApp)", lien, use_container_width=True)
+            b[3].link_button("📲 Relancer (WhatsApp)", lien, width="stretch")
 
     g, dr = st.columns([3, 2], gap="large")
     with g:
@@ -215,7 +215,7 @@ def _detail(session, dette, params):
                     ]
                 ),
                 hide_index=True,
-                use_container_width=True,
+                width="stretch",
                 column_config={
                     k: st.column_config.NumberColumn(format="localized") for k in ["Prévu", "Versé", "Reste"]
                 },
@@ -239,7 +239,7 @@ def _detail(session, dette, params):
                 f"Recu_R-{p.id:05d}.pdf",
                 "application/pdf",
                 key=f"recu_{p.id}",
-                use_container_width=True,
+                width="stretch",
             )
 
     if actif:
@@ -279,9 +279,9 @@ def _dialog_versement(dette_id):
                 f"Recu_R-{p.id:05d}.pdf",
                 "application/pdf",
                 type="primary",
-                use_container_width=True,
+                width="stretch",
             )
-            if st.button("Fermer", use_container_width=True):
+            if st.button("Fermer", width="stretch"):
                 st.session_state.pop("recu_cree")
                 st.rerun()
             return
@@ -297,7 +297,7 @@ def _dialog_versement(dette_id):
             )
             mode = st.selectbox("Moyen de paiement", config.MODES_PAIEMENT)
             note = st.text_input("Référence / note (facultatif)", placeholder="Ex : ID de transaction Wave")
-            if st.form_submit_button("Enregistrer le versement", type="primary", use_container_width=True):
+            if st.form_submit_button("Enregistrer le versement", type="primary", width="stretch"):
                 try:
                     p = D.enregistrer_paiement(session, dette, montant, mode, note)
                     session.commit()
@@ -338,7 +338,7 @@ def _dialog_nouvelle_dette():
             nb = e1.number_input("Payer en combien de fois ?", 1, 36, 1)
             freq = e2.selectbox("Tous les…", list(config.FREQUENCES), index=2)
             d0 = e3.date_input("1er paiement", value=D.ajouter_mois(date.today(), 1), format="DD/MM/YYYY")
-            if st.form_submit_button("Créer la dette", type="primary", use_container_width=True):
+            if st.form_submit_button("Créer la dette", type="primary", width="stretch"):
                 if client is None:
                     if not nom or not tel:
                         st.error("Choisissez un client ou saisissez le nom et le téléphone du nouveau client.")
@@ -395,7 +395,7 @@ def _versements(session, params):
     st.dataframe(
         df,
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
         column_config={"Montant": st.column_config.NumberColumn(format="localized")},
     )
     st.download_button(

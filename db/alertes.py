@@ -64,6 +64,22 @@ def derniere_vente_par_produit(session):
     return dict(lignes)
 
 
+def alertes_memorisees(params):
+    """Alertes du jour, calculées une fois puis gardées jusqu'au prochain enregistrement en base.
+
+    Pour l'affichage seulement (menu, tableau de bord) : la page Alertes recalcule les siennes.
+    """
+    from .models import get_session, memoire
+
+    cle = ("alertes", date.today(), tuple(sorted(params.items())))
+
+    def calcul():
+        with get_session() as s:
+            return calculer_alertes(s, params)
+
+    return memoire(cle, calcul)
+
+
 def calculer_alertes(session, params, aujourdhui=None):
     today = _today(aujourdhui)
     jours_ech = int(params.get("jours_alerte_echeance", 2))

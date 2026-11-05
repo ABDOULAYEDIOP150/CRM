@@ -31,7 +31,7 @@ sys._crm_version = _version
 
 import config
 from db import alertes as A
-from db.models import get_session, init_db
+from db.models import init_db
 from db.utils import get_params
 from modules import (
     aide,
@@ -124,8 +124,7 @@ if page not in PAGES:
     page = "Accueil"
 st.session_state["page"] = page
 
-with get_session() as s:
-    compte = A.compter(A.calculer_alertes(s, params))
+compte = A.compter(A.alertes_memorisees(params))
 st.session_state["_barre"] = {  # pour la barre du haut de chaque page (config.entete)
     "lieu": params.get("boutique_adresse", ""),
     "alertes": compte[A.CRITIQUE] + compte[A.ATTENTION],
@@ -146,7 +145,7 @@ with st.sidebar:
             st.button(  # on_click : la page change avant la relance, sans 2e chargement
                 texte,
                 key=f"menu_{cle}",
-                use_container_width=True,
+                width="stretch",
                 type="primary" if cle == page else "secondary",
                 on_click=config.aller_vers,
                 args=(cle,),

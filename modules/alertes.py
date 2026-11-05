@@ -32,7 +32,7 @@ def ligne_alerte(a, params, cle):
     b1, b2 = droite.columns(2)
     if a.page:
         etat = {**a.etat, **({"produit_cible": a.produit_id} if a.produit_id else {})}
-        config.bouton_page(b1, a.action, a.page, etat=etat, key=f"act_{cle}", use_container_width=True)
+        config.bouton_page(b1, a.action, a.page, etat=etat, key=f"act_{cle}", width="stretch")
     if a.dette is not None:
         s = D.situation_dette(a.dette)
         msg = D.message_relance(
@@ -46,7 +46,7 @@ def ligne_alerte(a, params, cle):
         )
         lien = D.lien_whatsapp(a.client.telephone, msg)
         if lien:
-            b2.link_button("📲 WhatsApp", lien, use_container_width=True)
+            b2.link_button("📲 WhatsApp", lien, width="stretch")
 
 
 def show_alertes():

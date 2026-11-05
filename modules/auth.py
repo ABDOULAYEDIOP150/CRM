@@ -29,7 +29,7 @@ def verifier_acces():
         )
         with st.form("connexion"):
             saisi = st.text_input("Mot de passe", type="password")
-            if st.form_submit_button("Se connecter", use_container_width=True):
+            if st.form_submit_button("Se connecter", width="stretch"):
                 if hmac.compare_digest(saisi.encode(), str(mot_de_passe).encode()):
                     st.session_state["connecte"] = True
                     st.rerun()
@@ -38,6 +38,6 @@ def verifier_acces():
 
 
 def bouton_deconnexion():
-    if secret("APP_PASSWORD") and st.button("🚪 Déconnexion", key="logout", use_container_width=True):
+    if secret("APP_PASSWORD") and st.button("🚪 Déconnexion", key="logout", width="stretch"):
         st.session_state.clear()
         st.rerun()

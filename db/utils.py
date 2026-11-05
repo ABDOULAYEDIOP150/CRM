@@ -5,15 +5,19 @@ from sqlalchemy import func
 
 import config
 
-from .models import Paiement, Parametre, Produit, Vente, VenteProduit, get_session
+from .models import Paiement, Parametre, Produit, Vente, VenteProduit, get_session, memoire
 
 # ---------- Paramètres boutique ----------
 
 
-def get_params():
+def _lire_params():
     with get_session() as s:
-        stockes = {p.cle: p.valeur for p in s.query(Parametre).all()}
-    return {**config.PARAMETRES_DEFAUT, **stockes}
+        return {p.cle: p.valeur for p in s.query(Parametre).all()}
+
+
+def get_params():
+    """Paramètres de la boutique (gardés en mémoire jusqu'au prochain enregistrement en base)."""
+    return {**config.PARAMETRES_DEFAUT, **memoire("parametres", _lire_params)}
 
 
 def get_param(cle):
@@ -70,17 +74,19 @@ def get_top_produits(limite=10, debut=None, fin=None):
 
 
 def get_evolution_ca(jours=30):
-    """CA (ventes) et encaissements (argent réellement reçu) par jour."""
+    """CA (ventes) et encaissements (argent réellement reçu) par jour, en 2 requêtes."""
+    from .tableau import _totaux_ventes  # import local : tableau importe des modules qui importent celui-ci
+
     fin = datetime.now()
     debut = (fin - timedelta(days=jours - 1)).replace(hour=0, minute=0, second=0, microsecond=0)
     jours_liste = [(debut + timedelta(days=i)).date() for i in range(jours)]
     ca = dict.fromkeys(jours_liste, 0)
     enc = dict.fromkeys(jours_liste, 0)
     with get_session() as s:
-        for v in s.query(Vente).filter(Vente.date.between(debut, fin)):
-            ca[v.date.date()] = ca.get(v.date.date(), 0) + v.total
-        for p in s.query(Paiement).filter(Paiement.date.between(debut, fin)):
-            enc[p.date.date()] = enc.get(p.date.date(), 0) + p.montant
+        for _, quand, total in _totaux_ventes(s, debut, fin):
+            ca[quand.date()] = ca.get(quand.date(), 0) + total
+        for quand, montant in s.query(Paiement.date, Paiement.montant).filter(Paiement.date.between(debut, fin)):
+            enc[quand.date()] = enc.get(quand.date(), 0) + montant
     return pd.DataFrame(
         {"Date": jours_liste, "CA": [ca[d] for d in jours_liste], "Encaissé": [enc[d] for d in jours_liste]}
     )

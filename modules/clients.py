@@ -16,7 +16,7 @@ def show_clients():
     with get_session() as session:
         config.entete("Clients", "Vos clients, ce qu'ils ont acheté et ce qu'ils vous doivent.")
         a, b = st.columns([1, 4], vertical_alignment="bottom")
-        if a.button("➕ Nouveau client", type="primary", use_container_width=True):
+        if a.button("➕ Nouveau client", type="primary", width="stretch"):
             _dialog_client(None)
         recherche = b.text_input(
             "Rechercher", placeholder="🔎  Nom, téléphone, quartier…", label_visibility="collapsed"
@@ -57,7 +57,7 @@ def show_clients():
         event = st.dataframe(
             df,
             hide_index=True,
-            use_container_width=True,
+            width="stretch",
             on_select="rerun",
             selection_mode="single-row",
             key="table_clients",
@@ -93,24 +93,20 @@ def _fiche(session, c):
     )
     st.write("")
     b = st.columns(4)
-    config.bouton_page(
-        b[0], "🛒 Lui vendre", "Ventes", etat={"vente_client": c.id}, type="primary", use_container_width=True
-    )
-    if b[1].button("✏️ Modifier", use_container_width=True):
+    config.bouton_page(b[0], "🛒 Lui vendre", "Ventes", etat={"vente_client": c.id}, type="primary", width="stretch")
+    if b[1].button("✏️ Modifier", width="stretch"):
         _dialog_client(c.id)
     b[2].download_button(
         "📄 Relevé de compte",
         documents.releve_client(c, params),
         f"Releve_{c.nom}.pdf",
         "application/pdf",
-        use_container_width=True,
+        width="stretch",
     )
     if encours:
         actives = [d for d in c.dettes if d.statut == "en_cours"]
         ouverte = actives[0].id if actives else None
-        config.bouton_page(
-            b[3], "💳 Voir ses dettes", "Dettes", etat={"dette_ouverte": ouverte}, use_container_width=True
-        )
+        config.bouton_page(b[3], "💳 Voir ses dettes", "Dettes", etat={"dette_ouverte": ouverte}, width="stretch")
 
     t1, t2, t3 = st.tabs(["Achats", "Dettes", "Versements"])
     with t1:
@@ -131,7 +127,7 @@ def _fiche(session, c):
                     ]
                 ),
                 hide_index=True,
-                use_container_width=True,
+                width="stretch",
                 column_config={"Total": st.column_config.NumberColumn(format="localized")},
             )
         else:
@@ -154,7 +150,7 @@ def _fiche(session, c):
                     ]
                 ),
                 hide_index=True,
-                use_container_width=True,
+                width="stretch",
                 column_config={
                     k: st.column_config.NumberColumn(format="localized") for k in ["Montant", "Versé", "Reste"]
                 },
@@ -177,7 +173,7 @@ def _fiche(session, c):
                     ]
                 ),
                 hide_index=True,
-                use_container_width=True,
+                width="stretch",
                 column_config={"Montant": st.column_config.NumberColumn(format="localized")},
             )
         else:
@@ -203,7 +199,7 @@ def _dialog_client(client_id):
                 help="Montant maximum que ce client peut devoir",
             )
             notes = st.text_area("Notes", value=(c.notes or "") if c else "", height=70)
-            if st.form_submit_button("Enregistrer", type="primary", use_container_width=True):
+            if st.form_submit_button("Enregistrer", type="primary", width="stretch"):
                 if not nom.strip() or not tel.strip():
                     st.error("Le nom et le téléphone sont obligatoires.")
                     return

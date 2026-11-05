@@ -62,7 +62,7 @@ def _formulaire(session, produits):
             ),
             label_visibility="collapsed",
         )
-        if b.button("➕", use_container_width=True, help="Nouveau produit (absent de la base)"):
+        if b.button("➕", width="stretch", help="Nouveau produit (absent de la base)"):
             dialog_produit()
         st.session_state["entree_fiche"] = pid
         if pid is None:
@@ -125,7 +125,7 @@ def _formulaire(session, produits):
             )
 
         recap = f"{quantite} {unite}(s) de {p.nom} à {fmt_money(pa)} = {fmt_money(pa * quantite)}"
-        if st.button(f"✅ Enregistrer l'entrée : {recap}", type="primary", use_container_width=True, disabled=not pv):
+        if st.button(f"✅ Enregistrer l'entrée : {recap}", type="primary", width="stretch", disabled=not pv):
             try:
                 quand = datetime.combine(jour, datetime.now().time()) if jour != date.today() else None
                 entree_stock(session, p, quantite, pa, pv, fournisseur or "", date=quand)
@@ -177,7 +177,7 @@ def _fiche_produit(session):
                     ]
                 ),
                 hide_index=True,
-                use_container_width=True,
+                width="stretch",
                 column_config={
                     k: st.column_config.NumberColumn(format="localized") for k in ["Prix achat", "Prix vente"]
                 },
@@ -235,7 +235,7 @@ def _historique(session):
     st.dataframe(
         df,
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
         column_config={
             k: st.column_config.NumberColumn(format="localized")
             for k in ["Prix d'achat", "Prix de vente", "Total payé"]

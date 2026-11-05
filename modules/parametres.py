@@ -39,7 +39,7 @@ def show_parametres():
             height=110,
             help="Variables : {client} {reste} {echeance} {boutique} {telephone}",
         )
-        if st.form_submit_button("💾 Enregistrer", type="primary", use_container_width=True):
+        if st.form_submit_button("💾 Enregistrer", type="primary", width="stretch"):
             set_params(
                 {
                     "boutique_nom": nom,

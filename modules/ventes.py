@@ -107,7 +107,7 @@ def _catalogue(session):
                 f"<div class='crm-stock'>{etat}{f' · {dans_panier} au panier' if dans_panier else ''}</div>",
                 unsafe_allow_html=True,
             )
-            if st.button("➕ Ajouter", key=f"add_{p.id}", use_container_width=True, disabled=dispo <= 0):
+            if st.button("➕ Ajouter", key=f"add_{p.id}", width="stretch", disabled=dispo <= 0):
                 panier[p.id] = dans_panier + 1
                 st.session_state[f"q_{p.id}"] = panier[p.id]
 
@@ -234,12 +234,12 @@ def _ticket(session):
         if not panier:
             bloquant = bloquant or "Ajoutez au moins un produit."
         libelle = "✅ Valider la vente à crédit" if credit else "✅ Valider la vente"
-        if st.button(libelle, type="primary", use_container_width=True, disabled=bool(bloquant)):
+        if st.button(libelle, type="primary", width="stretch", disabled=bool(bloquant)):
             _valider(session, client, panier, remise, total, credit, acompte, nb, frequence, date1, mode)
 
 
 def _nouveau_client_rapide(session):
-    with st.popover("➕", help="Nouveau client", use_container_width=True):
+    with st.popover("➕", help="Nouveau client", width="stretch"):
         with st.form("client_rapide", clear_on_submit=True):
             nom = st.text_input("Nom complet")
             tel = st.text_input("Téléphone", placeholder="77 123 45 67")
@@ -345,7 +345,7 @@ def _confirmation(session, vente_id):
         documents.facture(vente, params),
         f"Facture_F-{vente.id:05d}.pdf",
         "application/pdf",
-        use_container_width=True,
+        width="stretch",
     )
     if d:
         cols[1].download_button(
@@ -353,7 +353,7 @@ def _confirmation(session, vente_id):
             documents.reconnaissance_dette(d, params),
             f"Reconnaissance_dette_D-{d.id:05d}.pdf",
             "application/pdf",
-            use_container_width=True,
+            width="stretch",
             type="primary",
         )
         if d.paiements:
@@ -363,14 +363,14 @@ def _confirmation(session, vente_id):
                 documents.recu(p, params),
                 f"Recu_R-{p.id:05d}.pdf",
                 "application/pdf",
-                use_container_width=True,
+                width="stretch",
             )
     st.divider()
     b1, b2, _ = st.columns([1, 1, 2])
     b1.button(  # callback : un seul chargement
         "🛒 Nouvelle vente",
         type="primary",
-        use_container_width=True,
+        width="stretch",
         on_click=lambda: st.session_state.pop("derniere_vente", None),
     )
     if d:
@@ -379,5 +379,5 @@ def _confirmation(session, vente_id):
             "💳 Voir la dette",
             "Dettes",
             etat={"dette_ouverte": d.id, "derniere_vente": None},
-            use_container_width=True,
+            width="stretch",
         )

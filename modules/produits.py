@@ -52,8 +52,8 @@ def show_produits():
         )
         st.write("")
         a, b, c = st.columns([1.4, 1.4, 3], vertical_alignment="bottom")
-        config.bouton_page(a, "📥 Entrée de stock", "Entrees", type="primary", use_container_width=True)
-        config.bouton_page(b, "🗂️ Base produits", "Catalogue", use_container_width=True)
+        config.bouton_page(a, "📥 Entrée de stock", "Entrees", type="primary", width="stretch")
+        config.bouton_page(b, "🗂️ Base produits", "Catalogue", width="stretch")
         filtre = c.text_input("Filtrer", placeholder="🔎  Code, nom ou catégorie…", label_visibility="collapsed")
         if filtre:
             f = filtre.lower()
@@ -91,7 +91,7 @@ def _etat_stock(session, produits, seuil):
     event = st.dataframe(
         pd.DataFrame(lignes),
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
         on_select="rerun",
         selection_mode="single-row",
         key="table_stock",
@@ -126,7 +126,7 @@ def _etat_stock(session, produits, seuil):
                     ]
                 ),
                 hide_index=True,
-                use_container_width=True,
+                width="stretch",
                 column_config={
                     k: st.column_config.NumberColumn(format="localized") for k in ["Prix d'achat", "Prix de vente"]
                 },
@@ -172,7 +172,7 @@ def _inventaire(session, produits):
     edite = st.data_editor(
         df,
         hide_index=True,
-        use_container_width=True,
+        width="stretch",
         key="editeur_inventaire",
         disabled=["Code", "Produit", "Unité", "Théorique"],
         column_config={"id": None, "Compté": st.column_config.NumberColumn(min_value=0, step=1)},
@@ -236,7 +236,7 @@ def _mouvements(session, produits):
             for m in mvts
         ]
     )
-    st.dataframe(df, hide_index=True, use_container_width=True)
+    st.dataframe(df, hide_index=True, width="stretch")
     st.download_button(
         "⬇️ Exporter (CSV)", df.to_csv(index=False, sep=";").encode("utf-8-sig"), "mouvements_stock.csv", "text/csv"
     )

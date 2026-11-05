@@ -78,7 +78,7 @@ def show_ventes_documents():
         event = st.dataframe(
             df,
             hide_index=True,
-            use_container_width=True,
+            width="stretch",
             on_select="rerun",
             selection_mode="single-row",
             key="table_ventes",
@@ -99,7 +99,7 @@ def show_ventes_documents():
                 f"Facture_F-{v.id:05d}.pdf",
                 "application/pdf",
                 type="primary",
-                use_container_width=True,
+                width="stretch",
             )
             if v.dette:
                 b[1].download_button(
@@ -107,10 +107,10 @@ def show_ventes_documents():
                     documents.reconnaissance_dette(v.dette, params),
                     f"Reconnaissance_dette_D-{v.dette.id:05d}.pdf",
                     "application/pdf",
-                    use_container_width=True,
+                    width="stretch",
                 )
                 config.bouton_page(
-                    b[2], "💳 Ouvrir la dette", "Dettes", etat={"dette_ouverte": v.dette.id}, use_container_width=True
+                    b[2], "💳 Ouvrir la dette", "Dettes", etat={"dette_ouverte": v.dette.id}, width="stretch"
                 )
                 for p in v.dette.paiements:
                     st.download_button(

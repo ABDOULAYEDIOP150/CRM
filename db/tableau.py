@@ -8,7 +8,7 @@ from sqlalchemy import func
 from config import CLIENT_PASSAGE
 
 from . import dettes as D
-from .models import Client, Paiement, Produit, Vente, VenteProduit
+from .models import Client, Dette, Paiement, Produit, Vente, VenteProduit
 
 
 def _bornes(jour):
@@ -16,30 +16,52 @@ def _bornes(jour):
 
 
 def resume_ventes(session, debut, fin):
-    """CA, bénéfice, encaissé, nombre de ventes, panier moyen, part à crédit, répartition par catégorie."""
-    ventes = session.query(Vente).filter(Vente.date.between(debut, fin)).all()
-    ca = sum(v.total for v in ventes)
+    """CA, bénéfice, encaissé, nombre de ventes, panier moyen, part à crédit, répartition par catégorie.
+
+    3 requêtes quel que soit le nombre de ventes : les lignes de vente avec leur produit (sans charger
+    lots, dettes ni échéances), les ventes à crédit, les paiements.
+    """
+    lignes = (
+        session.query(
+            Vente.id, Vente.client_id, Vente.remise, VenteProduit.quantite, VenteProduit.prix_unit,
+            VenteProduit.cout, Produit.nom, Produit.categorie, Produit.prix_achat,
+        )
+        .select_from(Vente)
+        .outerjoin(VenteProduit, VenteProduit.vente_id == Vente.id)
+        .outerjoin(Produit, Produit.id == VenteProduit.produit_id)
+        .filter(Vente.date.between(debut, fin))
+        .all()
+    )  # fmt: skip
+    ventes = {}  # id -> [client_id, remise, sous_total, lignes]
+    for vid, client_id, remise, q, pu, cout, nom, cat, pa in lignes:
+        v = ventes.setdefault(vid, [client_id, remise or 0, 0.0, []])
+        if q is not None:
+            v[2] += q * (pu or 0)
+            v[3].append((q, pu or 0, cout, nom, cat, pa))
+    totaux = {vid: max(st - remise, 0) for vid, (_, remise, st, _) in ventes.items()}
+    ca = sum(totaux.values())
     benefice, marge_connue = 0.0, True
     par_categorie, par_produit = defaultdict(float), defaultdict(lambda: [0, 0.0])
-    for v in ventes:
-        part_remise = (v.remise or 0) / v.sous_total if v.sous_total else 0
-        for vp in v.produits:
-            montant = vp.prix_unit * vp.quantite * (1 - part_remise)
-            p = vp.produit
-            par_categorie[(p.categorie if p else None) or "Divers"] += montant
-            if p:
-                par_produit[p.nom][0] += vp.quantite
-                par_produit[p.nom][1] += montant
-            if vp.cout is not None:  # coût réel des lots vendus
-                benefice += montant - vp.cout
-            elif p and p.prix_achat:  # anciennes ventes : prix d'achat moyen
-                benefice += montant - p.prix_achat * vp.quantite
+    for _, remise, st, lv in ventes.values():
+        part_remise = remise / st if st else 0
+        for q, pu, cout, nom, cat, pa in lv:
+            montant = pu * q * (1 - part_remise)
+            par_categorie[(cat if nom is not None else None) or "Divers"] += montant
+            if nom is not None:
+                par_produit[nom][0] += q
+                par_produit[nom][1] += montant
+            if cout is not None:  # coût réel des lots vendus
+                benefice += montant - cout
+            elif nom is not None and pa:  # anciennes ventes : prix d'achat moyen
+                benefice += montant - pa * q
             else:
                 marge_connue = False
-    paiements = session.query(Paiement).filter(Paiement.date.between(debut, fin)).all()
+    a_credit = (
+        {i for (i,) in session.query(Dette.vente_id).filter(Dette.vente_id.in_(list(ventes)))} if ventes else set()
+    )
     par_mode = defaultdict(float)
-    for p in paiements:
-        par_mode[p.mode or "Espèces"] += p.montant
+    for mode, montant in session.query(Paiement.mode, Paiement.montant).filter(Paiement.date.between(debut, fin)):
+        par_mode[mode or "Espèces"] += montant
     return {
         "ca": ca,
         "nb_ventes": len(ventes),
@@ -48,10 +70,10 @@ def resume_ventes(session, debut, fin):
         "marge_complete": marge_connue,
         "encaisse": sum(par_mode.values()),
         "par_mode": dict(sorted(par_mode.items(), key=lambda x: -x[1])),
-        "credit": sum(v.total for v in ventes if v.dette),
+        "credit": sum(t for vid, t in totaux.items() if vid in a_credit),
         "par_categorie": dict(sorted(par_categorie.items(), key=lambda x: -x[1])),
         "par_produit": sorted(((k, q, m) for k, (q, m) in par_produit.items()), key=lambda x: -x[2]),
-        "clients": len({v.client_id for v in ventes}),
+        "clients": len({v[0] for v in ventes.values()}),
     }
 
 
@@ -107,10 +129,14 @@ def _stock_par_categorie(produits):
 
 def top_clients(session, debut, fin, n=5):
     totaux = defaultdict(float)
-    for v in session.query(Vente).filter(Vente.date.between(debut, fin)):
-        if v.client and v.client.nom != CLIENT_PASSAGE:
-            totaux[v.client.nom] += v.total
-    return sorted(totaux.items(), key=lambda x: -x[1])[:n]
+    for client_id, _, total in _totaux_ventes(session, debut, fin):
+        totaux[client_id] += total
+    noms = dict(session.query(Client.id, Client.nom).filter(Client.id.in_(list(totaux)))) if totaux else {}
+    par_nom = defaultdict(float)
+    for cid, t in totaux.items():
+        if cid in noms and noms[cid] != CLIENT_PASSAGE:
+            par_nom[noms[cid]] += t
+    return sorted(par_nom.items(), key=lambda x: -x[1])[:n]
 
 
 def nouveaux_clients(session, debut, fin):
