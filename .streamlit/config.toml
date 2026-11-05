@@ -4,6 +4,9 @@ backgroundColor = "#f8fafc"
 secondaryBackgroundColor = "#ffffff"
 textColor = "#1e293b"
 font = "sans serif"
+dataframeHeaderBackgroundColor = "#1e3a8a"
+dataframeHeaderTextColor = "#ffffff"
+dataframeBorderColor = "#e6ebf3"
 
 [server]
 headless = true

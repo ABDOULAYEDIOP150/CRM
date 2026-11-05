@@ -12,6 +12,7 @@ from db.models import LotStock, Produit, get_session
 from db.stock import ErreurStock, entree_stock, marge
 from db.utils import get_param
 from modules.catalogue import dialog_produit
+from modules.tableaux import styliser
 
 PAR_UNITE = "Prix unitaire"
 TOTAL = "Total payé"
@@ -154,18 +155,20 @@ def _fiche_produit(session):
         if p.lots:
             st.markdown("**Derniers achats**")
             st.dataframe(
-                pd.DataFrame(
-                    [
-                        {
-                            "Date": l.date.strftime("%d/%m/%Y"),
-                            "Qté": l.quantite,
-                            "Reste": l.restant,
-                            "Prix achat": l.prix_achat,
-                            "Prix vente": l.prix_vente,
-                            "Fournisseur": l.fournisseur or "",
-                        }
-                        for l in reversed(p.lots[-6:])
-                    ]
+                styliser(
+                    pd.DataFrame(
+                        [
+                            {
+                                "Date": l.date.strftime("%d/%m/%Y"),
+                                "Qté": l.quantite,
+                                "Reste": l.restant,
+                                "Prix achat": l.prix_achat,
+                                "Prix vente": l.prix_vente,
+                                "Fournisseur": l.fournisseur or "",
+                            }
+                            for l in reversed(p.lots[-6:])
+                        ]
+                    )
                 ),
                 hide_index=True,
                 width="stretch",
@@ -224,7 +227,7 @@ def _historique(session):
         ]
     )
     st.dataframe(
-        df,
+        styliser(df),
         hide_index=True,
         width="stretch",
         column_config={

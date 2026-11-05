@@ -11,6 +11,7 @@ from db import dettes as D
 from db.models import Vente, get_session
 from db.utils import get_params
 from modules import documents
+from modules.tableaux import styliser
 
 
 def _statut(v):
@@ -72,7 +73,7 @@ def show_ventes_documents():
             ]
         )
         event = st.dataframe(
-            df,
+            styliser(df),
             hide_index=True,
             width="stretch",
             on_select="rerun",

@@ -10,6 +10,7 @@ from db import dettes as D
 from db.models import Client, get_session
 from db.utils import get_params
 from modules import documents
+from modules.tableaux import styliser
 
 
 def show_clients():
@@ -53,7 +54,7 @@ def show_clients():
         df = pd.DataFrame(lignes)
         st.caption(f"{len(df)} client(s)")
         event = st.dataframe(
-            df,
+            styliser(df),
             hide_index=True,
             width="stretch",
             on_select="rerun",
@@ -110,19 +111,21 @@ def _fiche(session, c):
     with t1:
         if c.ventes:
             st.dataframe(
-                pd.DataFrame(
-                    [
-                        {
-                            "Facture": f"F-{v.id:05d}",
-                            "Date": v.date.strftime("%d/%m/%Y"),
-                            "Produits": ", ".join(
-                                f"{vp.quantite}× {vp.produit.nom}" for vp in v.produits if vp.produit
-                            ),
-                            "Total": v.total,
-                            "Règlement": "Crédit" if v.dette else v.mode_paiement,
-                        }
-                        for v in sorted(c.ventes, key=lambda v: v.date, reverse=True)
-                    ]
+                styliser(
+                    pd.DataFrame(
+                        [
+                            {
+                                "Facture": f"F-{v.id:05d}",
+                                "Date": v.date.strftime("%d/%m/%Y"),
+                                "Produits": ", ".join(
+                                    f"{vp.quantite}× {vp.produit.nom}" for vp in v.produits if vp.produit
+                                ),
+                                "Total": v.total,
+                                "Règlement": "Crédit" if v.dette else v.mode_paiement,
+                            }
+                            for v in sorted(c.ventes, key=lambda v: v.date, reverse=True)
+                        ]
+                    )
                 ),
                 hide_index=True,
                 width="stretch",
@@ -133,19 +136,21 @@ def _fiche(session, c):
     with t2:
         if c.dettes:
             st.dataframe(
-                pd.DataFrame(
-                    [
-                        {
-                            "Dette": f"D-{d.id:05d}",
-                            "Date": fmt_date(d.date_creation),
-                            "Objet": d.description,
-                            "Montant": d.montant,
-                            "Versé": d.total_paye,
-                            "Reste": d.reste,
-                            "Statut": D.situation_dette(d)["statut"],
-                        }
-                        for d in c.dettes
-                    ]
+                styliser(
+                    pd.DataFrame(
+                        [
+                            {
+                                "Dette": f"D-{d.id:05d}",
+                                "Date": fmt_date(d.date_creation),
+                                "Objet": d.description,
+                                "Montant": d.montant,
+                                "Versé": d.total_paye,
+                                "Reste": d.reste,
+                                "Statut": D.situation_dette(d)["statut"],
+                            }
+                            for d in c.dettes
+                        ]
+                    )
                 ),
                 hide_index=True,
                 width="stretch",
@@ -159,16 +164,18 @@ def _fiche(session, c):
         pay = sorted((p for d in c.dettes for p in d.paiements), key=lambda p: p.date, reverse=True)
         if pay:
             st.dataframe(
-                pd.DataFrame(
-                    [
-                        {
-                            "Reçu": f"R-{p.id:05d}",
-                            "Date": p.date.strftime("%d/%m/%Y"),
-                            "Montant": p.montant,
-                            "Moyen": p.mode,
-                        }
-                        for p in pay
-                    ]
+                styliser(
+                    pd.DataFrame(
+                        [
+                            {
+                                "Reçu": f"R-{p.id:05d}",
+                                "Date": p.date.strftime("%d/%m/%Y"),
+                                "Montant": p.montant,
+                                "Moyen": p.mode,
+                            }
+                            for p in pay
+                        ]
+                    )
                 ),
                 hide_index=True,
                 width="stretch",

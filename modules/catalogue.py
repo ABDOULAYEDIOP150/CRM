@@ -15,6 +15,7 @@ from db import import_produits as I
 from db.models import HistoriqueVente, Produit, VenteProduit, get_session
 from db.stock import fixer_stock, generer_code
 from db.utils import get_param
+from modules.tableaux import styliser
 
 AIDE_PRIX_ACHAT = (
     "Pour un produit déjà en stock, le prix d'achat vient de ses achats réels (entrées de stock) : "
@@ -108,7 +109,7 @@ def _liste(session, produits, filtre):
     df["Seuil d'alerte"] = df["Seuil d'alerte"].astype("Int64")
     devise = config.DEVISE
     edite = st.data_editor(
-        df,
+        styliser(df),
         hide_index=True,
         width="stretch",
         height=min(38 * len(df) + 40, 560),
@@ -133,7 +134,7 @@ def _liste(session, produits, filtre):
                 width="small",
                 help=AIDE_PRIX_ACHAT,
             ),
-            "Marge": st.column_config.NumberColumn(format="%.0f %%", width="small"),
+            "Marge": st.column_config.ProgressColumn(format="%.0f %%", min_value=0, max_value=40, width="small"),
             "Stock": st.column_config.NumberColumn(
                 "Stock ",
                 min_value=0,
@@ -377,18 +378,19 @@ def _import(session, produits):
             ("Erreurs (ignorées)", compte[I.ERREUR], config.DANGER_RED if compte[I.ERREUR] else config.MUTED, ""),
         ]
     )
-    icones = {I.NOUVEAU: "", I.MAJ: "", I.INCHANGE: "", I.ERREUR: ""}
     st.dataframe(
-        pd.DataFrame(
-            [
-                {
-                    "Ligne": l["ligne"],
-                    "Produit": l["nom"],
-                    "Action": f"{icones[l['action']]} {l['action']}",
-                    "Détail": l["detail"],
-                }
-                for l in lignes
-            ]
+        styliser(
+            pd.DataFrame(
+                [
+                    {
+                        "Ligne": l["ligne"],
+                        "Produit": l["nom"],
+                        "Action": l["action"],
+                        "Détail": l["detail"],
+                    }
+                    for l in lignes
+                ]
+            )
         ),
         hide_index=True,
         width="stretch",

@@ -11,6 +11,7 @@ from db import dettes as D
 from db.models import Client, Dette, Paiement, get_session
 from db.utils import get_params
 from modules import documents
+from modules.tableaux import styliser
 
 COULEURS = {
     D.STATUT_RETARD: config.DANGER_RED,
@@ -18,7 +19,6 @@ COULEURS = {
     D.STATUT_SOLDEE: config.SUCCESS_GREEN,
     D.STATUT_ANNULEE: config.MUTED,
 }
-ICONES = {D.STATUT_RETARD: "", D.STATUT_A_JOUR: "", D.STATUT_SOLDEE: "", D.STATUT_ANNULEE: ""}
 VUES = ["À encaisser", "En retard", "Soldées", "Tous les versements"]
 
 
@@ -102,21 +102,24 @@ def _liste(session, params, vue):
                 "Montant": d.montant,
                 "Versé": d.total_paye,
                 "Reste": d.reste,
+                "Remboursé": round(d.total_paye / d.montant * 100) if d.montant else 0,
                 "Prochain paiement": fmt_date(s["prochaine_date"]) if d.reste else "",
-                "Statut": f"{ICONES[s['statut']]} {s['statut']}"
-                + (f" ({s['jours_retard']} j)" if s["jours_retard"] else ""),
+                "Statut": s["statut"] + (f" ({s['jours_retard']} j)" if s["jours_retard"] else ""),
             }
             for d, s in lignes
         ]
     )
     event = st.dataframe(
-        df,
+        styliser(df),
         hide_index=True,
         width="stretch",
         on_select="rerun",
         selection_mode="single-row",
         key=f"table_dettes_{vue}",
-        column_config={c: st.column_config.NumberColumn(format="localized") for c in ["Montant", "Versé", "Reste"]},
+        column_config={
+            **{c: st.column_config.NumberColumn(format="localized") for c in ["Montant", "Versé", "Reste"]},
+            "Remboursé": st.column_config.ProgressColumn(format="%d %%", min_value=0, max_value=100, width="small"),
+        },
     )
     ids = [d.id for d, _ in lignes]
     if event.selection.rows:
@@ -199,18 +202,20 @@ def _detail(session, dette, params):
         ech = D.etat_echeances(dette)
         if ech:
             st.dataframe(
-                pd.DataFrame(
-                    [
-                        {
-                            "N°": l["numero"],
-                            "Date": fmt_date(l["date"]),
-                            "Prévu": l["montant"],
-                            "Versé": l["couvert"],
-                            "Reste": l["reste"],
-                            "Statut": l["statut"] + (f" ({l['jours_retard']} j)" if l["jours_retard"] else ""),
-                        }
-                        for l in ech
-                    ]
+                styliser(
+                    pd.DataFrame(
+                        [
+                            {
+                                "N°": l["numero"],
+                                "Date": fmt_date(l["date"]),
+                                "Prévu": l["montant"],
+                                "Versé": l["couvert"],
+                                "Reste": l["reste"],
+                                "Statut": l["statut"] + (f" ({l['jours_retard']} j)" if l["jours_retard"] else ""),
+                            }
+                            for l in ech
+                        ]
+                    )
                 ),
                 hide_index=True,
                 width="stretch",
@@ -385,7 +390,7 @@ def _versements(session, params):
         ]
     )
     st.dataframe(
-        df,
+        styliser(df),
         hide_index=True,
         width="stretch",
         column_config={"Montant": st.column_config.NumberColumn(format="localized")},

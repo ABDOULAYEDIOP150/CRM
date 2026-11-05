@@ -8,6 +8,7 @@ from config import fmt_date, fmt_money
 from db.models import MouvementStock, Produit, get_session
 from db.stock import fixer_stock, marge
 from db.utils import get_param
+from modules.tableaux import styliser
 
 TYPES_MVT = ["Vente", "Réception", "Import", "Inventaire", "Correction", "Création"]
 
@@ -88,7 +89,7 @@ def _etat_stock(session, produits, seuil):
             }
         )
     event = st.dataframe(
-        pd.DataFrame(lignes),
+        styliser(pd.DataFrame(lignes)),
         hide_index=True,
         width="stretch",
         on_select="rerun",
@@ -110,19 +111,21 @@ def _etat_stock(session, produits, seuil):
         st.markdown("**Arrivages**")
         if p.lots:
             st.dataframe(
-                pd.DataFrame(
-                    [
-                        {
-                            "Date": fmt_date(l.date),
-                            "Acheté": l.quantite,
-                            "Reste": l.restant,
-                            "Prix d'achat": l.prix_achat,
-                            "Prix de vente": l.prix_vente,
-                            "Fournisseur": l.fournisseur or "",
-                            "Note": l.note,
-                        }
-                        for l in reversed(p.lots)
-                    ]
+                styliser(
+                    pd.DataFrame(
+                        [
+                            {
+                                "Date": fmt_date(l.date),
+                                "Acheté": l.quantite,
+                                "Reste": l.restant,
+                                "Prix d'achat": l.prix_achat,
+                                "Prix de vente": l.prix_vente,
+                                "Fournisseur": l.fournisseur or "",
+                                "Note": l.note,
+                            }
+                            for l in reversed(p.lots)
+                        ]
+                    )
                 ),
                 hide_index=True,
                 width="stretch",
@@ -165,7 +168,7 @@ def _inventaire(session, produits):
         ]
     )
     edite = st.data_editor(
-        df,
+        styliser(df),
         hide_index=True,
         width="stretch",
         key="editeur_inventaire",
@@ -228,7 +231,7 @@ def _mouvements(session, produits):
             for m in mvts
         ]
     )
-    st.dataframe(df, hide_index=True, width="stretch")
+    st.dataframe(styliser(df), hide_index=True, width="stretch")
     st.download_button(
         "Exporter (CSV)", df.to_csv(index=False, sep=";").encode("utf-8-sig"), "mouvements_stock.csv", "text/csv"
     )
