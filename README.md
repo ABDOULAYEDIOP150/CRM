@@ -225,6 +225,20 @@ Lancer les tests : `python -m pytest -q`
 > ⚠️ Sans base PostgreSQL, Streamlit Cloud efface la base SQLite à chaque redémarrage.
 > Une base gratuite [Neon](https://neon.tech) ou [Supabase](https://supabase.com) suffit.
 
+### 🐘 Brancher PostgreSQL (données conservées)
+
+1. Créer une base gratuite sur [Neon](https://neon.tech) → copier la *connection string* (`postgresql://…?sslmode=require`)
+2. Streamlit Cloud → *Settings → Secrets* :
+   ```toml
+   DEMO_MODE = "false"
+   [database]
+   url = "postgresql://utilisateur:motdepasse@hote/neondb?sslmode=require"
+   ```
+3. Redémarrer l'app : les tables sont créées automatiquement. La page **Base de données** doit afficher « PostgreSQL ».
+
+En local : `export CRM_DB_URL="postgresql://…"` puis `streamlit run app_crm.py`.
+Tester sur PostgreSQL : `CRM_TEST_PG_URL="postgresql://…/base_de_test" pytest` (la base de test est **vidée**).
+
 ## 🔁 CI/CD (GitHub Actions)
 
 À chaque push ou pull request (`.github/workflows/ci.yml`) :

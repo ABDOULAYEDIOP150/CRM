@@ -16,8 +16,8 @@ AUJ = date(2026, 10, 22)
 
 
 @pytest.fixture
-def session(tmp_path):
-    s = get_session(f"sqlite:///{tmp_path / 'a.db'}")
+def session(db_url):
+    s = get_session(db_url)
     yield s
     s.close()
 

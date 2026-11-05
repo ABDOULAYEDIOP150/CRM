@@ -11,8 +11,8 @@ from db.models import MouvementStock, Produit, get_session  # noqa: E402
 
 
 @pytest.fixture
-def session(tmp_path):
-    s = get_session(f"sqlite:///{tmp_path / 'i.db'}")
+def session(db_url):
+    s = get_session(db_url)
     s.add(Produit(nom="Ciment 50 kg", prix=4500, prix_achat=4000, stock=10, reference="CIM50"))
     s.flush()
     yield s

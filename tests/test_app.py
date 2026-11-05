@@ -26,8 +26,13 @@ PAGES = [
 
 @pytest.fixture(scope="module", autouse=True)
 def base_demo(tmp_path_factory):
-    db = tmp_path_factory.mktemp("db") / "crm.db"
-    os.environ["CRM_DB_URL"] = f"sqlite:///{db}"
+    from conftest import PG_URL, vider_postgres
+
+    if PG_URL:
+        vider_postgres(PG_URL)
+        os.environ["CRM_DB_URL"] = PG_URL
+    else:
+        os.environ["CRM_DB_URL"] = f"sqlite:///{tmp_path_factory.mktemp('db') / 'crm.db'}"
     import db.models as m
 
     m.DB_URL = os.environ["CRM_DB_URL"]

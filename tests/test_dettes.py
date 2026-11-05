@@ -11,8 +11,8 @@ from db.models import Client, get_session  # noqa: E402
 
 
 @pytest.fixture
-def session(tmp_path):
-    s = get_session(f"sqlite:///{tmp_path / 'test.db'}")
+def session(db_url):
+    s = get_session(db_url)
     yield s
     s.close()
 

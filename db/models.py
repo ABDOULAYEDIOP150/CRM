@@ -33,9 +33,19 @@ def _url_par_defaut():
             url = st.secrets.get("database", {}).get("url")
         except Exception:  # pas de secrets.toml : cas normal en local
             url = None
-    url = url or "sqlite:///crm.db"
-    if url.startswith("postgres://"):  # format donné par certains hébergeurs
-        url = "postgresql://" + url[len("postgres://") :]
+    return normaliser_url(url or "sqlite:///crm.db")
+
+
+def normaliser_url(url):
+    """Force le pilote PostgreSQL psycopg (v3), quel que soit le format copié chez l'hébergeur.
+
+    « postgres://… » (Heroku, Supabase) et « postgresql://… » (Neon) deviennent « postgresql+psycopg://… ».
+    Sans cela, selon la version de SQLAlchemy, il chercherait psycopg2 ou psycopg et l'app plante au démarrage.
+    """
+    url = url.strip().strip('"').strip("'")
+    for prefixe in ("postgres://", "postgresql://"):
+        if url.startswith(prefixe):
+            return "postgresql+psycopg://" + url[len(prefixe) :]
     return url
 
 
@@ -254,7 +264,7 @@ def _migrer(engine):
 
 
 def init_db(url=None):
-    url = url or DB_URL
+    url = normaliser_url(url or DB_URL)
     if url not in _ENGINES:
         engine = create_engine(url, echo=False, pool_pre_ping=True)
         Base.metadata.create_all(engine)
