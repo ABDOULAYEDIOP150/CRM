@@ -1,8 +1,8 @@
-"""Base produits : la liste de référence de la boutique (code, nom, catégorie, unité, prix, seuil).
+"""Produits & stock : la liste de référence de la boutique (code, nom, catégorie, unité, prix, seuil).
 
 - Les prix se modifient directement dans le tableau, ou produit par produit (bouton « Modifier »).
 - Stock : la colonne se modifie comme un inventaire (quantité comptée, écart noté dans le journal) ;
-  les achats passent par « Entrée de stock », les ventes par la caisse.
+  les achats passent par « Achats », les ventes par la caisse.
 - La base peut être importée d'un coup depuis un fichier Excel / CSV (bouton « Importer la base »).
 """
 
@@ -15,6 +15,7 @@ from db import import_produits as I
 from db.models import HistoriqueVente, Produit, VenteProduit, get_session
 from db.stock import fixer_stock, generer_code
 from db.utils import get_param
+from modules.produits import mouvements
 from modules.tableaux import styliser
 
 AIDE_PRIX_ACHAT = (
@@ -38,13 +39,42 @@ def unites(session, produits=None):
 
 def show_catalogue():
     with get_session() as session:
-        config.entete("Base produits", "Produits, prix et stock")
+        config.entete("Produits & stock", "Prix, quantités et mouvements")
         produits = session.query(Produit).order_by(Produit.categorie, Produit.nom).all()
 
+        if produits:
+            seuil = int(get_param("seuil_stock"))
+            ruptures = [p for p in produits if (p.stock or 0) <= 0 and p.lots]  # jamais acheté : pas une rupture
+            faibles = [p for p in produits if 0 < (p.stock or 0) <= p.seuil(seuil)]
+            en_stock = sum(1 for p in produits if (p.stock or 0) > 0)
+            valeur = sum((p.prix_achat or 0) * max(p.stock or 0, 0) for p in produits)
+            config.kpis(
+                [
+                    ("Produits", len(produits), config.SECONDARY_BLUE, f"{en_stock} en stock"),
+                    ("Valeur du stock", fmt_money(valeur), config.SUCCESS_GREEN, "au prix d'achat"),
+                    ("Ruptures", len(ruptures), config.DANGER_RED if ruptures else config.MUTED,
+                     ", ".join(p.nom for p in ruptures[:2]) + ("…" if len(ruptures) > 2 else "")),
+                    ("Stock faible", len(faibles), config.WARNING_ORANGE if faibles else config.MUTED,
+                     ", ".join(p.nom for p in faibles[:2]) + ("…" if len(faibles) > 2 else "")),
+                ]
+            )  # fmt: skip
+            st.write("")
+            c = st.columns(5)
+            if c[0].button("Ajouter un produit", type="primary", width="stretch", icon=":material/add:"):
+                dialog_produit()
+            if c[1].button("Modifier un produit", width="stretch", icon=":material/edit:"):
+                dialog_modifier()
+            config.bouton_page(c[2], "Nouvel achat", "Entrees", width="stretch", icon=":material/local_shipping:")
+            if c[3].button("Importer", width="stretch", icon=":material/upload_file:"):
+                st.session_state["base_import"] = True
+                st.rerun()
+            c[4].download_button("Exporter en Excel", I.modele_excel(produits), "produits.xlsx", width="stretch",
+                                 icon=":material/download:")  # fmt: skip
+
         if st.session_state.get("base_import") or not produits:
-            with st.container(key="carte_import"):
+            with config.carte():
                 h, f = st.columns([5, 1], vertical_alignment="center")
-                h.markdown("#### Importer la base produits")
+                h.markdown("#### Importer des produits")
                 if produits and f.button("Fermer", width="stretch"):
                     st.session_state["base_import"] = False
                     st.rerun()
@@ -52,33 +82,13 @@ def show_catalogue():
             if not produits:
                 return
 
-        a, b = st.columns([3, 2], vertical_alignment="center")
-        filtre = a.text_input("Filtrer", placeholder="Code, nom ou catégorie…", label_visibility="collapsed")
-        avec_prix = sum(1 for p in produits if p.prix)
-        en_stock = sum(1 for p in produits if (p.stock or 0) > 0)
-        b.markdown(
-            f"<div class='bande-jour' style='margin:0'><b>{len(produits)}</b> produits"
-            f"<span>{avec_prix} avec prix</span><span>{en_stock} en stock</span></div>",
-            unsafe_allow_html=True,
-        )
-        _liste(session, produits, filtre)
-
-        st.write("")
-        c = st.columns(5)
-        if c[0].button("Ajouter un produit", type="primary", width="stretch", icon=":material/add:"):
-            dialog_produit()
-        if c[1].button("Modifier un produit", width="stretch", icon=":material/edit:"):
-            dialog_modifier()
-        if c[2].button("Importer la base", width="stretch", icon=":material/upload_file:"):
-            st.session_state["base_import"] = True
-            st.rerun()
-        c[3].download_button(
-            "Exporter en Excel",
-            I.modele_excel(produits),
-            "base_produits.xlsx",
-            width="stretch",
-        )
-        config.bouton_page(c[4], "Entrée de stock", "Entrees", width="stretch")
+        t1, t2 = st.tabs(["Produits", "Mouvements de stock"])
+        with t1:
+            filtre = st.text_input("Rechercher", placeholder="Rechercher un produit (code, nom, catégorie)",
+                                   label_visibility="collapsed")  # fmt: skip
+            _liste(session, produits, filtre)
+        with t2:
+            mouvements(session, produits)
 
 
 def _liste(session, produits, filtre):
@@ -171,7 +181,7 @@ def _enregistrer(session, df, edite):
             autres += 1
     lignes = []
     if stocks:
-        lignes.append(f"**Inventaire** : {len(stocks)} stock(s) corrigé(s)")
+        lignes.append(f"**Inventaire** : {config.pluriel(len(stocks), 'stock corrigé', 'stocks corrigés')}")
         for n, a, b, u in stocks[:8]:
             if b > a:
                 signe = f":green[+{b - a}]"
@@ -181,11 +191,11 @@ def _enregistrer(session, df, edite):
                 signe = f":red[{b - a}]"
             lignes.append(f"  - {n} : {a} → **{b}** {u}  {signe}")
         if len(stocks) > 8:
-            lignes.append(f"  - … et {len(stocks) - 8} autre(s)")
+            lignes.append(f"  - … et {config.pluriel(len(stocks) - 8, 'autre')}")
     if prix:
-        lignes.append(f"**Prix** modifiés : {prix} produit(s)")
+        lignes.append(f"**Prix modifiés** : {config.pluriel(prix, 'produit')}")
     if autres:
-        lignes.append(f"Autres informations modifiées : {autres} produit(s)")
+        lignes.append(f"Autres modifications : {config.pluriel(autres, 'produit')}")
     with config.carte():
         st.markdown("**Modifications à enregistrer**  \n" + "  \n".join(lignes))
         if not st.button("Enregistrer les modifications", type="primary"):
@@ -232,11 +242,11 @@ def _enregistrer(session, df, edite):
             corriges += 1
     session.commit()
     st.session_state.pop("editeur_catalogue", None)
-    msg = "Base produits mise à jour."
+    msg = "Produits mis à jour."
     if corriges:
-        msg += f" Inventaire : {corriges} stock(s) corrigé(s), noté(s) dans le journal."
+        msg += f" Inventaire : {config.pluriel(corriges, 'stock corrigé', 'stocks corrigés')}."
     if ignores:
-        msg += f" Prix d'achat inchangé pour {len(ignores)} produit(s) en stock : il vient de leurs achats."
+        msg += f" Prix d'achat inchangé pour {config.pluriel(len(ignores), 'produit')} en stock (il vient des achats)."
     config.flash(msg)
     st.rerun()
 
@@ -293,7 +303,7 @@ def _verifier(session, v, produit_id=None):
 def dialog_produit(nom_propose=""):
     with get_session() as session:
         v = _champs_produit(session, nom_propose=nom_propose)
-        apres = st.checkbox("Enregistrer tout de suite un achat (entrée de stock) pour ce produit", value=False)
+        apres = st.checkbox("Enregistrer un achat pour ce produit", value=False)
         if st.button("Ajouter à la base", type="primary", width="stretch"):
             erreur = _verifier(session, v)
             if erreur:
@@ -403,11 +413,11 @@ def _import(session, produits):
             horizontal=True,
         )
     a_faire = compte[I.NOUVEAU] + compte[I.MAJ]
-    if st.button(f"Importer {a_faire} produit(s)", type="primary", disabled=a_faire == 0):
+    if st.button(f"Importer {config.pluriel(a_faire, 'produit')}", type="primary", disabled=a_faire == 0):
         res = I.appliquer(session, lignes, "remplacer" if mode.startswith("Le stock total") else "ajouter")
         session.commit()
         st.session_state.pop("editeur_catalogue", None)
         st.session_state.pop("fichier_import", None)
         st.session_state["base_import"] = False
-        config.flash(f"Import terminé : {res[I.NOUVEAU]} créé(s), {res[I.MAJ]} mis à jour.")
+        config.flash(f"Import terminé : {res[I.NOUVEAU]} nouveaux, {res[I.MAJ]} mis à jour.")
         st.rerun()

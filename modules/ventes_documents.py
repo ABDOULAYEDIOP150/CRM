@@ -1,4 +1,4 @@
-"""Ventes & documents : historique des ventes, réimpression des factures, reconnaissances de dette et reçus."""
+"""Ventes & factures : historique des ventes, réimpression des factures, reconnaissances de dette et reçus."""
 
 from datetime import date, datetime, time, timedelta
 
@@ -22,7 +22,7 @@ def _statut(v):
 
 def show_ventes_documents():
     params = get_params()
-    config.entete("Ventes & documents", "Factures, reconnaissances de dette et reçus")
+    config.entete("Ventes & factures", "Factures, reconnaissances de dette et reçus")
     f1, f2, f3 = st.columns([2, 2, 3])
     periode = f1.date_input("Période", value=(date.today() - timedelta(days=30), date.today()), format="DD/MM/YYYY")
     reglement = f2.selectbox("Règlement", ["Toutes", "Comptant", "À crédit", "Crédit non soldé"])

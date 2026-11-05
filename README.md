@@ -86,25 +86,18 @@ Dans de nombreuses organisations, les données clients sont :
 * 🟠 À surveiller : client qui doit payer aujourd'hui ou **dans les 2 jours**, stock faible (seuil par produit), plafond de crédit dépassé, produit vendu sous son prix d'achat
 * ℹ️ Information : stock qui ne se vend pas depuis 30 jours, prix d'achat manquants
 
-### 📦 Stock : catalogue séparé + entrées de stock (lots)
-* **Catalogue produits** = la liste de référence : **code court** (ex. SAB-001, généré automatiquement), nom, catégorie, unité, seuil. Ni prix ni quantité.
-* **Entrée de stock** = un achat : on tape le code ou le nom, la **quantité achetée**, le **prix d'achat** (unitaire ou total payé), le **prix de vente** ; la marge et le bénéfice attendu s'affichent avant de valider. Historique des achats par fournisseur.
-* Chaque arrivage est un **lot** avec son propre prix d'achat ; les ventes consomment les plus anciens d'abord (**FIFO**) → **bénéfice exact** même quand le prix du fournisseur change.
-* **État du stock** (valeur, marge, détail des lots, changement de prix), **inventaire** par comptage, **journal** de tous les mouvements.
+### 📦 Produits & stock
+* **Produits & stock** : la liste des produits (code court, nom, catégorie, unité, prix de vente et d'achat, seuil), modifiable directement dans le tableau ; la colonne Stock sert d'**inventaire** (écart enregistré dans le journal) ; onglet **Mouvements de stock**.
+* **Import Excel / CSV** (colonnes reconnues automatiquement, aperçu, mise à jour sans doublon) et export Excel.
+* **Achats** : on tape le code ou le nom, la quantité achetée, le prix d'achat (unitaire ou total payé) et le prix de vente ; la marge s'affiche avant de valider.
+* Chaque arrivage garde son prix d'achat ; les ventes consomment les plus anciens d'abord (**FIFO**) : le bénéfice reste exact quand le prix du fournisseur change.
 
-![Entrée de stock](docs/entree_stock.png)
+![Achats](docs/entree_stock.png)
 
-### 👥 Clients · 📦 Produits · ❓ Guide rapide
-* Fiche client : achats, dettes, versements, relevé
-* Produits avec catégorie, unité (sac, barre, kg…), seuil d'alerte ; **réception de marchandise** ; modification dans le tableau
-* **Import Excel / CSV** du catalogue (modèle fourni, colonnes reconnues automatiquement, aperçu avant import, mise à jour sans doublon) et export pour modifier dans Excel
-* **Journal des mouvements de stock** : chaque vente, réception, correction et import est tracé
-* **Police au choix** dans Paramètres (Inter, Poppins, Nunito, Montserrat, Roboto)
-* Guide rapide intégré pour former un vendeur en 10 minutes
-
-### 🗄️ Base de données
-* SQLite en local, **PostgreSQL** en ligne (Neon / Supabase) ; tables créées et mises à jour automatiquement
-* Page dédiée : type de base, nombre d'enregistrements, **export Excel complet** et sauvegarde du fichier
+### 👥 Clients · ⚙️ Paramètres
+* Fiche client : achats, dettes, versements, relevé de compte
+* Paramètres : coordonnées de la boutique, réglages des alertes, message de relance WhatsApp, **sauvegarde Excel** de toutes les données
+* Base **SQLite** en local, **PostgreSQL** en ligne (Neon, Supabase) ; tables créées et mises à jour automatiquement
 
 | Tableau de bord | Alertes | Recherche produit |
 |---|---|---|
@@ -234,7 +227,7 @@ Lancer les tests : `python -m pytest -q`
    [database]
    url = "postgresql://utilisateur:motdepasse@hote/neondb?sslmode=require"
    ```
-3. Redémarrer l'app : les tables sont créées automatiquement. La page **Base de données** doit afficher « PostgreSQL ».
+3. Redémarrer l'app : les tables sont créées automatiquement.
 
 En local : `export CRM_DB_URL="postgresql://…"` puis `streamlit run app_crm.py`.
 Tester sur PostgreSQL : `CRM_TEST_PG_URL="postgresql://…/base_de_test" pytest` (la base de test est **vidée**).

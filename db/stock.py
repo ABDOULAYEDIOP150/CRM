@@ -126,7 +126,7 @@ def sortie_stock(session, produit, quantite, type_="Vente", note="", date=None):
         return 0.0
     _reprendre(session, produit)
     if quantite > (produit.stock or 0):
-        raise ErreurStock(f"Stock insuffisant pour {produit.nom} ({produit.stock} disponible(s)).")
+        raise ErreurStock(f"Stock insuffisant pour {produit.nom} (il en reste {produit.stock}).")
     reste, cout = quantite, 0.0
     for lot in produit.lots:
         if reste == 0:

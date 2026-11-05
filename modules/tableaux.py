@@ -67,7 +67,7 @@ def styliser(df: pd.DataFrame):
     if statut:
         sty = sty.map(style_statut, subset=statut)
 
-    dus = [c for c in colonnes if any(m in bas[c] for m in MOTS_DU)]
+    dus = [c for c in colonnes if any(m in bas[c] for m in MOTS_DU) and "stock" not in bas[c]]
     montants = [
         c for c in colonnes
         if c not in dus and any(m in bas[c] for m in MOTS_MONTANT) and pd.api.types.is_numeric_dtype(df[c])
@@ -77,7 +77,7 @@ def styliser(df: pd.DataFrame):
     if dus:
         sty = sty.map(lambda v: "color: #c2410c" if (_nombre(v) or 0) > 0 else "color: #15803d", subset=dus)
 
-    stock = next((c for c in colonnes if bas[c].startswith("stock") or bas[c] in ("reste en stock", "compté")), None)
+    stock = next((c for c in colonnes if bas[c].startswith("stock") and "après" not in bas[c]), None)
     seuil = next((c for c in colonnes if bas[c].startswith("seuil")), None)
     if stock is not None:
 

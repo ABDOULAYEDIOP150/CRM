@@ -1,4 +1,4 @@
-"""Page Alertes : tout ce qui demande une action, du plus urgent au moins urgent."""
+"""Page Alertes : ce qui demande une action, classé par urgence."""
 
 from html import escape
 
@@ -24,7 +24,7 @@ def ligne_alerte(a, params, cle):
     c = COULEUR[a.niveau]
     gauche, milieu, droite = st.columns([5, 2, 3], vertical_alignment="center")
     gauche.markdown(
-        f"<div class='crm-alert' style='--c:{c};margin:0'>{a.icone} <b>{escape(a.titre)}</b> · {escape(a.detail)}</div>",
+        f"<div class='crm-alert' style='--c:{c};margin:0'><b>{escape(a.titre)}</b> · {escape(a.detail)}</div>",
         unsafe_allow_html=True,
     )
     if a.montant:
@@ -46,7 +46,7 @@ def ligne_alerte(a, params, cle):
         )
         lien = D.lien_whatsapp(a.client.telephone, msg)
         if lien:
-            b2.link_button("WhatsApp", lien, width="stretch")
+            b2.link_button("WhatsApp", lien, width="stretch", icon=":material/chat:")
 
 
 def show_alertes():
@@ -57,9 +57,9 @@ def show_alertes():
         config.entete("Alertes", "Classées par urgence")
         config.kpis(
             [
-                ("Urgent", n[A.CRITIQUE], config.DANGER_RED, "retards de paiement, ruptures"),
-                ("À surveiller", n[A.ATTENTION], config.WARNING_ORANGE, "paiements proches, stock faible…"),
-                ("Pour information", n[A.INFO], config.MUTED, "stock dormant, prix manquants"),
+                ("Urgent", n[A.CRITIQUE], config.DANGER_RED, "retards, ruptures"),
+                ("À surveiller", n[A.ATTENTION], config.WARNING_ORANGE, "paiements proches, stock faible"),
+                ("Pour information", n[A.INFO], config.MUTED, "produits qui ne se vendent pas"),
             ]
         )
         st.write("")
@@ -70,12 +70,12 @@ def show_alertes():
             st.success("Aucune alerte. Tout est en ordre.")
             return
 
-        for t, (icone, libelle) in A.TYPES.items():
+        for t, (_, libelle) in A.TYPES.items():
             groupe = [a for a in visibles if a.type == t]
             if not groupe:
                 continue
             total = sum(a.montant for a in groupe)
-            entete = f"{icone} {libelle} ({len(groupe)})" + (f" · {fmt_money(total)}" if total else "")
+            entete = f"{libelle} ({len(groupe)})" + (f" · {fmt_money(total)}" if total else "")
             info = groupe[0].niveau == A.INFO
             with st.expander(entete, expanded=not info):
                 for i, a in enumerate(groupe):

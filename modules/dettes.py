@@ -33,9 +33,14 @@ def show_dettes():
                     "Total à encaisser",
                     fmt_money(r["total_du"]),
                     config.SECONDARY_BLUE,
-                    f"{r['nb_debiteurs']} client(s)",
+                    config.pluriel(r["nb_debiteurs"], "client"),
                 ),
-                ("En retard", fmt_money(r["montant_retard"]), config.DANGER_RED, f"{len(r['retards'])} dette(s)"),
+                (
+                    "En retard",
+                    fmt_money(r["montant_retard"]),
+                    config.DANGER_RED,
+                    config.pluriel(len(r["retards"]), "dette"),
+                ),
                 (
                     "Échéances proches",
                     len(r["echeances_proches"]),
@@ -47,13 +52,9 @@ def show_dettes():
         )
         st.write("")
         a, b, _ = st.columns([1.3, 1.3, 3])
-        if a.button(
-            "Nouvelle dette",
-            type="primary",
-            width="stretch",
-        ):
+        if a.button("Nouvelle dette", type="primary", width="stretch", icon=":material/add:"):
             _dialog_nouvelle_dette()
-        config.bouton_page(b, "Vente à crédit", "Ventes", width="stretch")
+        config.bouton_page(b, "Vente à crédit", "Ventes", width="stretch", icon=":material/point_of_sale:")
 
         vue = st.segmented_control("Vue", VUES, default=VUES[0], key="vue_dettes", label_visibility="collapsed")
         vue = vue or VUES[0]
@@ -87,7 +88,7 @@ def _liste(session, params, vue):
     if recherche:
         lignes = [(d, s) for d, s in lignes if recherche.lower() in f"{d.client.nom} {d.client.telephone}".lower()]
     if not lignes:
-        st.info("Aucune dette ici. ")
+        st.info("Aucune dette ici.")
         return
     lignes.sort(
         key=lambda x: (x[1]["statut"] != D.STATUT_RETARD, -x[1]["jours_retard"], x[1]["prochaine_date"] or date.max)
@@ -166,7 +167,7 @@ def _detail(session, dette, params):
 
     actif = dette.statut == "en_cours" and dette.reste > 0
     b = st.columns(4)
-    if actif and b[0].button("Encaisser un versement", type="primary", width="stretch"):
+    if actif and b[0].button("Encaisser un versement", type="primary", width="stretch", icon=":material/payments:"):
         _dialog_versement(dette.id)
     b[1].download_button(
         "Reconnaissance de dette",
@@ -194,7 +195,7 @@ def _detail(session, dette, params):
         )
         lien = D.lien_whatsapp(c.telephone, msg)
         if lien:
-            b[3].link_button("Relancer (WhatsApp)", lien, width="stretch")
+            b[3].link_button("Relancer sur WhatsApp", lien, width="stretch", icon=":material/chat:")
 
     g, dr = st.columns([3, 2], gap="large")
     with g:

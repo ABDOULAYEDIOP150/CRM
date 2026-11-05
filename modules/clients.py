@@ -17,7 +17,7 @@ def show_clients():
     with get_session() as session:
         config.entete("Clients", "Achats et soldes par client")
         a, b = st.columns([1, 4], vertical_alignment="bottom")
-        if a.button("Nouveau client", type="primary", width="stretch"):
+        if a.button("Nouveau client", type="primary", width="stretch", icon=":material/person_add:"):
             _dialog_client(None)
         recherche = b.text_input("Rechercher", placeholder="Nom, téléphone, quartier…", label_visibility="collapsed")
 
@@ -52,7 +52,7 @@ def show_clients():
                 }
             )
         df = pd.DataFrame(lignes)
-        st.caption(f"{len(df)} client(s)")
+        st.caption(config.pluriel(len(df), "client"))
         event = st.dataframe(
             styliser(df),
             hide_index=True,
@@ -84,7 +84,7 @@ def _fiche(session, c):
                 "Total acheté",
                 fmt_money(sum(v.total for v in c.ventes)),
                 config.SECONDARY_BLUE,
-                f"{len(c.ventes)} achat(s)",
+                config.pluriel(len(c.ventes), "achat"),
             ),
             ("Doit actuellement", fmt_money(encours), config.DANGER_RED if encours else config.SUCCESS_GREEN, ""),
             ("Plafond de crédit", fmt_money(c.plafond_credit) if c.plafond_credit else "Aucun", config.MUTED, ""),
@@ -93,7 +93,7 @@ def _fiche(session, c):
     st.write("")
     b = st.columns(4)
     config.bouton_page(b[0], "Lui vendre", "Ventes", etat={"vente_client": c.id}, type="primary", width="stretch")
-    if b[1].button("Modifier", width="stretch"):
+    if b[1].button("Modifier", width="stretch", icon=":material/edit:"):
         _dialog_client(c.id)
     b[2].download_button(
         "Relevé de compte",

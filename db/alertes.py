@@ -8,6 +8,8 @@ from datetime import date, datetime, timedelta
 
 from sqlalchemy import func
 
+import config
+
 from . import dettes as D
 from .models import Client, Dette, Produit, Vente, VenteProduit
 
@@ -100,7 +102,9 @@ def calculer_alertes(session, params, aujourdhui=None):
                     "dette_retard",
                     CRITIQUE,
                     nom,
-                    f"{s['jours_retard']} jour(s) de retard · reste {round(d.reste):,} sur la dette".replace(",", " "),
+                    f"{config.pluriel(s['jours_retard'], 'jour')} de retard · reste {round(d.reste):,} sur la dette".replace(
+                        ",", " "
+                    ),
                     s["montant_retard"],
                     "Encaisser",
                     "Dettes",
@@ -188,7 +192,7 @@ def calculer_alertes(session, params, aujourdhui=None):
                     "stock_faible",
                     ATTENTION,
                     p.nom,
-                    f"reste {p.stock} {unite}(s) (seuil {seuil})",
+                    f"reste {p.stock} {config.unite_pl(p.stock, unite)} (seuil {seuil})",
                     0,
                     "Commander",
                     "Entrees",
@@ -219,7 +223,7 @@ def calculer_alertes(session, params, aujourdhui=None):
                     "dormant",
                     INFO,
                     p.nom,
-                    f"{depuis} · {p.stock} {unite}(s) immobilisé(s)",
+                    f"{depuis} · {p.stock} {config.unite_pl(p.stock, unite)} en stock",
                     (p.prix_achat or p.prix or 0) * p.stock,
                     "Voir",
                     "Produits",

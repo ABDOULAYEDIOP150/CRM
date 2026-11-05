@@ -42,6 +42,13 @@ def _cle(texte):
     return re.sub(r"[^a-z0-9]", "", t)
 
 
+def _meme_produit(a, b):
+    """Deux noms désignent-ils le même produit ? (« Ciment CPJ 45 - 50 kg » / « Ciment CPJ 45 50kg » : oui)."""
+    from difflib import SequenceMatcher
+
+    return SequenceMatcher(None, _cle(a), _cle(b)).ratio() >= 0.8
+
+
 def reconnaitre_colonnes(colonnes):
     """{'nom': 'Désignation', 'stock': 'Qté', …} à partir des entêtes du fichier."""
     trouvees = {}
@@ -108,8 +115,18 @@ def analyser(session, df):
                         erreurs.append(f"{ENTETES_MODELE[champ]} négatif")
                     valeurs[champ] = v
         ref = valeurs.get("reference", "").lower()
-        produit = par_ref.get(ref) if ref else None
-        produit = produit or par_nom.get(nom.lower())
+        produit = par_nom.get(nom.lower())
+        par_code = par_ref.get(ref) if ref else None
+        if produit is None and par_code is not None:
+            if _meme_produit(par_code.nom, nom):
+                produit = par_code  # même produit, nom légèrement modifié
+            else:
+                # Code déjà pris par un AUTRE produit : on ne fusionne jamais deux produits différents
+                valeurs.pop("reference")
+                ref = ""
+        elif produit is not None and par_code is not None and par_code is not produit:
+            valeurs.pop("reference")  # le code appartient à un autre produit : on garde celui du produit
+            ref = ""
         cle = ref or nom.lower()
         if cle in vus:
             erreurs.append("produit présent deux fois dans le fichier")
@@ -152,10 +169,16 @@ def appliquer(session, lignes, mode_stock="remplacer"):
     ou un **inventaire** (mode « remplacer »).
     """
     compte = {NOUVEAU: 0, MAJ: 0}
-    for l in lignes:
+    # Lignes avec leur propre code d'abord : les codes générés ensuite ne peuvent plus les prendre
+    for l in sorted(lignes, key=lambda x: "reference" not in x["valeurs"]):
         if l["action"] not in (NOUVEAU, MAJ):
             continue
         v = dict(l["valeurs"])
+        ref = v.get("reference")
+        if ref:
+            pris = session.query(Produit).filter(Produit.reference == ref).first()
+            if pris is not None and pris.id != l["produit_id"]:
+                v.pop("reference")  # déjà utilisé par un autre produit : un code libre sera créé
         stock = v.pop("stock", None)
         prix_achat = v.pop("prix_achat", None)
         prix_vente = v.pop("prix", None)

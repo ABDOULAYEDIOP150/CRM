@@ -34,17 +34,14 @@ from db import alertes as A
 from db.models import init_db
 from db.utils import get_params
 from modules import (
-    aide,
     alertes,
     auth,
-    base_donnees,
     catalogue,
     clients,
     dashboard,
     dettes,
     entrees,
     parametres,
-    produits,
     ui,
     ventes,
     ventes_documents,
@@ -84,43 +81,22 @@ MENU = [
         None,
         [
             ("Accueil", ":material/space_dashboard:", "Tableau de bord", dashboard.show_dashboard),
-            ("Alertes", ":material/notifications:", "Alertes", alertes.show_alertes),
-        ],
-    ),
-    (
-        "Vendre",
-        [
             ("Ventes", ":material/point_of_sale:", "Nouvelle vente", ventes.show_ventes),
             ("Dettes", ":material/account_balance_wallet:", "Dettes clients", dettes.show_dettes),
-        ],
-    ),
-    (
-        "Stock",
-        [
-            ("Entrees", ":material/move_to_inbox:", "Entrée de stock", entrees.show_entrees),
-            ("Produits", ":material/inventory_2:", "État du stock", produits.show_produits),
-            ("Catalogue", ":material/category:", "Base produits", catalogue.show_catalogue),
-        ],
-    ),
-    (
-        "Gérer",
-        [
             ("Clients", ":material/group:", "Clients", clients.show_clients),
-            ("Documents", ":material/receipt_long:", "Ventes & documents", ventes_documents.show_ventes_documents),
-        ],
-    ),
-    (
-        "Réglages",
-        [
+            ("Catalogue", ":material/inventory_2:", "Produits & stock", catalogue.show_catalogue),
+            ("Entrees", ":material/local_shipping:", "Achats", entrees.show_entrees),
+            ("Documents", ":material/receipt_long:", "Ventes & factures", ventes_documents.show_ventes_documents),
+            ("Alertes", ":material/notifications:", "Alertes", alertes.show_alertes),
             ("Paramètres", ":material/settings:", "Paramètres", parametres.show_parametres),
-            ("Base", ":material/database:", "Base de données", base_donnees.show_base),
-            ("Aide", ":material/help:", "Guide rapide", aide.show_aide),
         ],
     ),
 ]
+# Anciennes adresses de pages (liens internes, alertes) redirigées vers les pages actuelles
+ALIAS = {"Produits": "Catalogue", "Base": "Paramètres", "Aide": "Accueil"}
 PAGES = {cle: fn for _, items in MENU for cle, _, _, fn in items}
 
-page = st.session_state.get("page", "Accueil")
+page = ALIAS.get(st.session_state.get("page", "Accueil"), st.session_state.get("page", "Accueil"))
 if page not in PAGES:
     page = "Accueil"
 st.session_state["page"] = page

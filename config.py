@@ -123,6 +123,20 @@ def fmt_money(montant, devise=None):
     return f"{valeur:,}".replace(",", " ") + f" {devise}"
 
 
+def pluriel(n, mot, pluriel_=None):
+    """pluriel(1, "client") -> « 1 client » ; pluriel(3, "client") -> « 3 clients »."""
+    return f"{n} {mot if abs(n) <= 1 else (pluriel_ or mot + 's')}"
+
+
+def unite_pl(n, unite):
+    """Unité accordée : 1 sac, 3 sacs ; les unités abrégées (kg, m³, L…) restent invariables."""
+    unite = unite or "pièce"
+    invariables = ("kg", "m³", "m²", "l", "litre", "tonne", "lot")
+    if abs(n) <= 1 or unite.lower() in invariables or unite.endswith(("s", "x")):
+        return unite
+    return unite + "s"
+
+
 def fmt_date(d):
     return d.strftime("%d/%m/%Y") if d else ""
 

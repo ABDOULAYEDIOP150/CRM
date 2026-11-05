@@ -1,4 +1,4 @@
-"""Entrée de stock : je choisis un produit du catalogue (par son code ou son nom), je dis combien j'en ai
+"""Achats : je choisis un produit de la base (par son code ou son nom), je dis combien j'en ai
 acheté, à quel prix, et à combien je vais le revendre. L'application calcule la marge et met le stock à jour."""
 
 from datetime import date, datetime, time, timedelta
@@ -25,8 +25,8 @@ def _fournisseurs(session):
 def show_entrees():
     with get_session() as session:
         config.entete(
-            "Entrée de stock",
-            "Enregistrer un achat de marchandise",
+            "Achats",
+            "Marchandise reçue des fournisseurs",
         )
         produits = session.query(Produit).order_by(Produit.nom).all()
         if not produits:
@@ -34,11 +34,15 @@ def show_entrees():
             if st.button("Nouveau produit", type="primary"):
                 dialog_produit()
             return
-        gauche, droite = st.columns([3, 2], gap="large")
-        with gauche:
+        choisi = st.session_state.get("entree_produit") is not None or "produit_cible" in st.session_state
+        if choisi:
+            gauche, droite = st.columns([3, 2], gap="large")
+            with gauche:
+                _formulaire(session, produits)
+            with droite:
+                _fiche_produit(session)
+        else:
             _formulaire(session, produits)
-        with droite:
-            _fiche_produit(session)
         st.divider()
         _historique(session)
 
@@ -123,8 +127,11 @@ def _formulaire(session, produits):
                 f"Bénéfice : {fmt_money(gain)} par {unite} ({taux_reel:.0%}), {fmt_money(gain * quantite)} sur l'arrivage."
             )
 
-        recap = f"{quantite} {unite}(s) de {p.nom} à {fmt_money(pa)} = {fmt_money(pa * quantite)}"
-        if st.button(f"Enregistrer l'entrée : {recap}", type="primary", width="stretch", disabled=not pv):
+        recap = (
+            f"{quantite} {config.unite_pl(quantite, unite)} de {p.nom} à {fmt_money(pa)} = {fmt_money(pa * quantite)}"
+        )
+        if st.button(f"Enregistrer l'achat : {recap}", type="primary", width="stretch", disabled=not pv,
+                     icon=":material/check:"):  # fmt: skip
             try:
                 quand = datetime.combine(jour, datetime.now().time()) if jour != date.today() else None
                 entree_stock(session, p, quantite, pa, pv, fournisseur or "", date=quand)
@@ -135,7 +142,7 @@ def _formulaire(session, produits):
                 return
             for k in [k for k in st.session_state if str(k).startswith("entree_") and k != "entree_produit"]:
                 st.session_state.pop(k, None)
-            config.flash(f"Entrée enregistrée : +{quantite} {unite}(s) de {p.nom}. Stock : {p.stock}.")
+            config.flash(f"Achat enregistré : +{quantite} {unite} de {p.nom}. Stock : {p.stock}.")
             st.rerun()
 
 
@@ -185,7 +192,7 @@ def _fiche_produit(session):
 
 
 def _historique(session):
-    st.markdown("#### Historique des entrées de stock")
+    st.markdown("#### Historique des achats")
     a, b, c = st.columns([2, 2, 3])
     periode = a.date_input(
         "Période", value=(date.today() - timedelta(days=30), date.today()), format="DD/MM/YYYY", key="hist_entrees"
@@ -201,7 +208,7 @@ def _historique(session):
     if recherche:
         lots = [l for l in lots if recherche.lower() in f"{l.produit.reference} {l.produit.nom}".lower()]
     if not lots:
-        st.caption("Aucune entrée sur cette période.")
+        st.caption("Aucun achat sur cette période.")
         return
     df = pd.DataFrame(
         [
@@ -221,7 +228,7 @@ def _historique(session):
     )
     config.kpis(
         [
-            ("Entrées", len(lots), config.SECONDARY_BLUE, ""),
+            ("Achats", len(lots), config.SECONDARY_BLUE, ""),
             ("Total des achats", fmt_money(df["Total payé"].sum()), config.WARNING_ORANGE, "sur la période"),
             ("Fournisseurs", len({l.fournisseur for l in lots if l.fournisseur}), config.MUTED, ""),
         ]

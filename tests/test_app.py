@@ -164,7 +164,7 @@ def test_entree_de_stock():
     pv = [n for n in at.number_input if n.key and n.key.startswith(f"entree_pv_{sable.id}_")][0]
     pv.set_value(19000).run()
     assert any("Bénéfice" in s.value and "5 000" in s.value for s in at.success)
-    [b for b in at.button if "Enregistrer l'entrée" in b.label][0].click().run()
+    [b for b in at.button if "Enregistrer l'achat" in b.label][0].click().run()
     assert not at.exception, at.exception
     with get_session() as s:
         sable = s.query(Produit).filter(Produit.nom == "Sable de mer").one()

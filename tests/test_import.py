@@ -54,3 +54,20 @@ def test_modele_relu(session):
     df = I.lire_fichier("catalogue.xlsx", contenu)
     lignes, cols = I.analyser(session, df)
     assert len(cols) == 8 and lignes[0]["action"] in (I.INCHANGE, I.MAJ)
+
+
+def test_code_deja_pris_par_un_autre_produit(session):
+    """Un code identique sur un produit différent ne doit jamais fusionner les deux produits."""
+    session.add(Produit(nom="Fil électrique 2,5 mm²", prix=14000, prix_achat=11500, stock=5, reference="FIL-001"))
+    session.flush()
+    df = pd.DataFrame({"Nom": ["Fil d'attache recuit", "Fil électrique 2,5 mm2"], "Référence": ["FIL-001", "FIL-001"],
+                       "Prix de vente": [1200, 14500]})  # fmt: skip
+    lignes, _ = I.analyser(session, df)
+    actions = {l["nom"]: l["action"] for l in lignes}
+    assert actions["Fil d'attache recuit"] == I.NOUVEAU  # produit distinct : créé à part
+    assert actions["Fil électrique 2,5 mm2"] == I.MAJ  # même produit (nom presque identique) : mis à jour
+    I.appliquer(session, lignes)
+    fil = session.query(Produit).filter_by(reference="FIL-001").one()
+    assert fil.nom == "Fil électrique 2,5 mm2" and fil.prix == 14500 and fil.prix_achat == 11500
+    attache = session.query(Produit).filter_by(nom="Fil d'attache recuit").one()
+    assert attache.reference != "FIL-001" and attache.stock == 0
