@@ -50,15 +50,15 @@ GUIDES = [
     (
         "📦 Gérer le stock",
         [
-            "Le **Catalogue produits** est la liste de vos produits : nom, **code** (ex. SAB-001), catégorie, unité. "
-            "Pas de prix ni de quantité ici.",
+            "La **Base produits** est la liste de vos produits : nom, **code** (ex. SAB-001), catégorie, unité, "
+            "**prix de vente** et **prix d'achat**. Modifiez une case du tableau, ou utilisez **✏️ Modifier un produit**.",
             "À chaque achat chez un fournisseur : **Entrée de stock** → tapez le code ou le nom du produit, la "
             "**quantité achetée**, le **prix d'achat** (par unité ou total payé) et le **prix de vente**. "
             "La marge s'affiche avant de valider.",
             "Chaque arrivage garde son prix d'achat : les plus anciens sont vendus en premier, le bénéfice reste exact.",
             "**État du stock** : quantités, valeur, marge, détail des arrivages ; changez un prix de vente sans racheter.",
             "**Inventaire** : tapez ce que vous avez compté, les écarts sont corrigés et notés dans le journal.",
-            "Beaucoup de produits ? **Catalogue → Importer depuis Excel**.",
+            "Beaucoup de produits ? **Base produits → 📥 Importer la base** (fichier Excel ou CSV).",
         ],
     ),
     (

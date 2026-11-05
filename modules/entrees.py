@@ -29,7 +29,7 @@ def show_entrees():
         )
         produits = session.query(Produit).order_by(Produit.nom).all()
         if not produits:
-            st.info("Le catalogue est vide : ajoutez d'abord vos produits.")
+            st.info("La base produits est vide : ajoutez ou importez d'abord vos produits.")
             if st.button("➕ Nouveau produit", type="primary"):
                 dialog_produit()
             return
@@ -56,10 +56,13 @@ def _formulaire(session, produits):
             index=None,
             key="entree_produit",
             placeholder="🔎  Tapez le code ou le nom (ex. « SAB » ou « sable »)",
-            format_func=lambda i: f"{par_id[i].reference} · {par_id[i].nom}  ({par_id[i].unite or 'pièce'})",
+            format_func=lambda i: (
+                f"{par_id[i].nom}  ·  {par_id[i].reference}  —  achat {fmt_money(par_id[i].prix_achat)}"
+                f" · vente {fmt_money(par_id[i].prix)} · stock {par_id[i].stock or 0} {par_id[i].unite or 'pièce'}"
+            ),
             label_visibility="collapsed",
         )
-        if b.button("➕", use_container_width=True, help="Nouveau produit (absent du catalogue)"):
+        if b.button("➕", use_container_width=True, help="Nouveau produit (absent de la base)"):
             dialog_produit()
         st.session_state["entree_fiche"] = pid
         if pid is None:
@@ -144,7 +147,7 @@ def _fiche_produit(session):
         if p is None:
             st.markdown("##### Comment ça marche ?")
             st.markdown(
-                "1. Le **catalogue** contient vos produits avec un code (ex. SAB-001 = Sable).\n"
+                "1. La **base produits** contient vos produits avec un code (ex. SAB-001 = Sable) et leurs prix.\n"
                 "2. À chaque achat, faites une **entrée de stock** : quantité, prix d'achat, prix de vente.\n"
                 "3. Chaque arrivage garde **son propre prix d'achat** : si le prix du fournisseur change, "
                 "le bénéfice reste exact (les plus anciens sont vendus en premier)."

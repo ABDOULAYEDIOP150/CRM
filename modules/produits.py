@@ -53,7 +53,7 @@ def show_produits():
         st.write("")
         a, b, c = st.columns([1.4, 1.4, 3], vertical_alignment="bottom")
         config.bouton_page(a, "📥 Entrée de stock", "Entrees", type="primary", use_container_width=True)
-        config.bouton_page(b, "📚 Catalogue produits", "Catalogue", use_container_width=True)
+        config.bouton_page(b, "🗂️ Base produits", "Catalogue", use_container_width=True)
         filtre = c.text_input("Filtrer", placeholder="🔎  Code, nom ou catégorie…", label_visibility="collapsed")
         if filtre:
             f = filtre.lower()
@@ -69,7 +69,7 @@ def show_produits():
 
 def _etat_stock(session, produits, seuil):
     if not produits:
-        st.info("Aucun produit. Commencez par le catalogue, puis faites une entrée de stock.")
+        st.info("Aucun produit. Commencez par la Base produits, puis faites une entrée de stock.")
         return
     lignes = []
     for p in produits:

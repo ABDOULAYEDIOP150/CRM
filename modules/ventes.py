@@ -64,7 +64,9 @@ def _catalogue(session):
     st.markdown("##### ① Produits")
     tous = session.query(Produit).order_by(Produit.nom).all()
     if not tous:
-        st.info("Aucun produit. Ajoutez vos produits dans le **Catalogue**, puis faites une **Entrée de stock**.")
+        st.info(
+            "Aucun produit. Ajoutez ou importez vos produits dans la **Base produits**, puis faites une **Entrée de stock**."
+        )
         config.bouton_page(st, "📦 Ajouter des produits", "Catalogue")
         return
     par_id = {p.id: p for p in tous}

@@ -98,7 +98,7 @@ MENU = [
         [
             ("Entrees", "📥", "Entrée de stock", entrees.show_entrees),
             ("Produits", "📦", "État du stock", produits.show_produits),
-            ("Catalogue", "📚", "Catalogue produits", catalogue.show_catalogue),
+            ("Catalogue", "🗂️", "Base produits", catalogue.show_catalogue),
         ],
     ),
     (
